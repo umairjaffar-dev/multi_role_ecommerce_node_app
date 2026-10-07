@@ -24,6 +24,7 @@ const EnvSchema = z.object({
 
   // ── Database ──
   DATABASE_URL: z.url("DATABASE_URL must be a valid connection string"),
+  DB_POOL_MAX: z.coerce.number().int().positive().default(10),
 
   // ── JWT ──
   JWT_ACCESS_SECRET: z
@@ -86,6 +87,7 @@ export const env = {
 
   db: {
     url: e.DATABASE_URL,
+    poolMax: e.DB_POOL_MAX,
   },
 
   jwt: {
