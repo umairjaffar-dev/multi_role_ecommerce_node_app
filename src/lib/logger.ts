@@ -23,11 +23,6 @@ export const logger = pino({
     censor: "[REDACTED]",
   },
 
-  // //   This will format the log object
-  // formatters: {
-  //   level: (label) => ({ level: label.toUpperCase() }),
-  // },
-
   //   This will transport the log object to the console
   //   Development: colorful and readable output
   //   Production: raw JSON output(for easy parsing by log management tools)

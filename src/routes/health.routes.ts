@@ -18,14 +18,10 @@ healthRouter.get("/health", async (req, res) => {
   res.status(isHealthy ? 200 : 503).json({
     success: isHealthy,
     data: {
+      database,
       status: isHealthy ? "ok" : "degraded",
       uptime: Math.round(process.uptime()),
       timestamp: new Date().toISOString(),
     },
   });
-});
-
-// Temporary route to verify the global error handler (remove after testing)
-healthRouter.get("/health/error", async () => {
-  throw new Error("Deliberate test error");
 });

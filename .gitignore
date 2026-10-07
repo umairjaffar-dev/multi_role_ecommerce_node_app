@@ -4,3 +4,4 @@ dist
 .env.production
 uploads
 *.log
+repomix-output.xml

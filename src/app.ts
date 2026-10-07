@@ -38,6 +38,10 @@ export function createApp() {
         res.setHeader("x-request-id", id);
         return id;
       },
+      serializers: {
+        req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+        res: (res) => ({ statusCode: res.statusCode }),
+      },
       customLogLevel: (_req, res, err) => {
         if (err || res.statusCode >= 500) return "error";
         if (res.statusCode >= 400) return "warn";
@@ -53,8 +57,8 @@ export function createApp() {
 
   // 5. API routes
   app.use("/api/v1", apiRouter);
-  app.get("/", (req, res) => {
-    res.json({ message: "Server is running." });
+  app.get("/", (_req, res) => {
+    res.json({ success: true, data: { message: "Server is running." } });
   });
 
   // 6. 404 + global error handler (must be registered last)
