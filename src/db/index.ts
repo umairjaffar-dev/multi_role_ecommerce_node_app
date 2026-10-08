@@ -23,7 +23,7 @@ export const db = drizzle({
   casing: "snake_case",
 });
 
-export type Database = typeof db;
+export type DatabaseType = typeof db;
 
 export async function checkDatabaseConnection(): Promise<void> {
   await db.execute(sql`SELECT 1`);

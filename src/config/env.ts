@@ -35,6 +35,9 @@ const EnvSchema = z.object({
     .min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
   JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
   JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+
+  // ── Security ──
+  BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
 });
 
 const parsed = EnvSchema.safeParse(rawEnv);
@@ -67,6 +70,10 @@ export const env = {
     accessExpiresIn: e.JWT_ACCESS_EXPIRES_IN,
     refreshExpiresIn: e.JWT_REFRESH_EXPIRES_IN,
   },
+
+  security: {
+    bcryptSaltRounds: e.BCRYPT_SALT_ROUNDS,
+  },
 } as const;
 
-export type Env = typeof env;
+export type EnvType = typeof env;
