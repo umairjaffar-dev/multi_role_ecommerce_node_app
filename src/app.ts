@@ -9,6 +9,7 @@ import cookieParser from "cookie-parser";
 import { apiRouter } from "./routes/index.js";
 import { notFound } from "./middlewares/notFound.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+import { authenticate } from "./middlewares/authenticate.js";
 
 export function createApp() {
   const app = express();
@@ -57,7 +58,7 @@ export function createApp() {
 
   // 5. API routes
   app.use("/api/v1", apiRouter);
-  app.get("/", (_req, res) => {
+  app.get("/", authenticate, (_req, res) => {
     res.json({ success: true, data: { message: "Server is running." } });
   });
 

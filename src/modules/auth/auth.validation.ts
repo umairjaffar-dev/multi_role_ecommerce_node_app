@@ -28,3 +28,17 @@ export const RegisterUserSchema = z
   });
 
 export type RegisterUserSchemaType = z.infer<typeof RegisterUserSchema>;
+
+// Login only checks presence: password rules may change after a user registered
+export const LoginUserSchema = z.object({
+  email: z
+    .string({ error: "Email is required" })
+    .trim()
+    .toLowerCase()
+    .pipe(z.email("Invalid email address")),
+  password: z
+    .string({ error: "Password is required" })
+    .min(1, "Password is required"),
+});
+
+export type LoginUserSchemaType = z.infer<typeof LoginUserSchema>;

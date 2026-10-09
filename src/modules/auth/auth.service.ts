@@ -1,10 +1,15 @@
+import { sql } from "drizzle-orm";
 import { env } from "../../config/env.js";
 import { db } from "../../db/index.js";
 import { usersTable, type UserType } from "../../db/schema/index.js";
 import { AppError } from "../../utils/AppError.js";
 import { isUniqueViolation } from "../../utils/dbErrors.js";
-import { type RegisterUserSchemaType } from "./auth.validation.js";
+import {
+  type LoginUserSchemaType,
+  type RegisterUserSchemaType,
+} from "./auth.validation.js";
 import bcrypt from "bcrypt";
+import { signAccessToken } from "../../lib/jwt.js";
 
 export type PublicUserType = Pick<
   UserType,
@@ -54,4 +59,56 @@ export async function userRegisterService(
 
     throw err;
   }
+}
+
+export type LoginResultType = {
+  user: PublicUserType;
+  accessToken: string;
+};
+
+const dummyPasswordHashPromise = bcrypt.hash(
+  "dummy-password-for-timing",
+  env.security.bcryptSaltRounds,
+);
+
+export async function userLoginService(
+  input: LoginUserSchemaType,
+): Promise<LoginResultType> {
+  const [user] = await db
+    .select({
+      ...publicUserColumns,
+      passwordHash: usersTable.passwordHash,
+      isActive: usersTable.isActive,
+    })
+    .from(usersTable)
+    .where(sql`lower(${usersTable.email}) = ${input.email}`)
+    .limit(1);
+
+  const passwordHash = user?.passwordHash ?? (await dummyPasswordHashPromise);
+  const isPasswordValid = await bcrypt.compare(input.password, passwordHash);
+
+  if (!user || !isPasswordValid) {
+    throw new AppError(401, "Invalid email or password", "INVALID_CREDENTIALS");
+  }
+
+  if (!user.isActive) {
+    throw new AppError(
+      403,
+      "This account has been disabled",
+      "ACCOUNT_DISABLED",
+    );
+  }
+
+  const {
+    passwordHash: _passwordHash,
+    isActive: _isActive,
+    ...publicUser
+  } = user;
+
+  const accessToken = signAccessToken({
+    sub: publicUser.id,
+    role: publicUser.role,
+  });
+
+  return { user: publicUser, accessToken };
 }
