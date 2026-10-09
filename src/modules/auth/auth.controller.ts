@@ -1,12 +1,12 @@
 import type { Request, Response } from "express";
-import type { RegisterInputType } from "./auth.validation.js";
-import { authService } from "./auth.service.js";
+import { userRegisterService } from "./auth.service.js";
+import type { RegisterUserSchemaType } from "./auth.validation.js";
 
 export async function userRegisterController(
-  req: Request<unknown, unknown, RegisterInputType>,
+  req: Request<unknown, unknown, RegisterUserSchemaType>,
   res: Response,
 ) {
-  const user = await authService.registerUser(req.body);
+  const user = await userRegisterService(req.body);
 
   req.log.info({ userId: user.id }, "User registered");
 

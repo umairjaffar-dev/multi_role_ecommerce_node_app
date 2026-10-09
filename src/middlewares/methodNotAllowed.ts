@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { AppError } from "../utils/AppError.js";
 
 // Responds with 405 when a route exists but does not support the requested HTTP method
-export function methodNotAllowed(allowedMethods: string[]) {
+export function methodNotAllowed(allowedMethods: Array<string>) {
   return (req: Request, res: Response, next: NextFunction) => {
     res.setHeader("Allow", allowedMethods.join(", "));
     next(
