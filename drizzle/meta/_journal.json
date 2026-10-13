@@ -8,6 +8,13 @@
       "when": 1791377735917,
       "tag": "0000_create_users_table",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791875264084,
+      "tag": "0001_create_refresh_tokens_table",
+      "breakpoints": true
     }
   ]
 }

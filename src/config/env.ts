@@ -31,9 +31,6 @@ const EnvSchema = z.object({
   JWT_ACCESS_SECRET: z
     .string()
     .min(32, "JWT_ACCESS_SECRET must be at least 32 characters"),
-  JWT_REFRESH_SECRET: z
-    .string()
-    .min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
   JWT_ACCESS_EXPIRES_IN: z
     .string()
     .regex(
@@ -41,13 +38,7 @@ const EnvSchema = z.object({
       "JWT_ACCESS_EXPIRES_IN must look like 15m, 1hr or 7d",
     )
     .default("15m"),
-  JWT_REFRESH_EXPIRES_IN: z
-    .string()
-    .regex(
-      JWT_DURATION_REGEX,
-      "JWT_REFRESH_EXPIRES_IN must look like 15m, 1hr or 7d",
-    )
-    .default("7d"),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(7),
 
   // ── Security ──
   BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
@@ -79,9 +70,11 @@ export const env = {
 
   jwt: {
     accessSecret: e.JWT_ACCESS_SECRET,
-    refreshSecret: e.JWT_REFRESH_SECRET,
     accessExpiresIn: e.JWT_ACCESS_EXPIRES_IN,
-    refreshExpiresIn: e.JWT_REFRESH_EXPIRES_IN,
+  },
+
+  refreshToken: {
+    ttlDays: e.REFRESH_TOKEN_TTL_DAYS,
   },
 
   security: {
