@@ -1,9 +1,8 @@
-import type { CookieOptions, Request, Response } from "express";
+import type { CookieOptions, Response } from "express";
 import { env } from "../config/env.js";
+import { getRefreshTokenTtlMs } from "./refreshToken.js";
 
 export const REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000; // Same Value that used in getRefreshTokenExpiryDate method.
 
 const refreshTokenCookieOptions: CookieOptions = {
   httpOnly: true, // JavaScript in the browser cannot read it (XSS protection)
@@ -15,7 +14,7 @@ const refreshTokenCookieOptions: CookieOptions = {
 export function setRefreshTokenCookie(res: Response, token: string): void {
   res.cookie(REFRESH_TOKEN_COOKIE_NAME, token, {
     ...refreshTokenCookieOptions,
-    maxAge: env.refreshToken.ttlDays * MS_PER_DAY,
+    maxAge: getRefreshTokenTtlMs(),
   });
 }
 

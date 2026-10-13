@@ -16,7 +16,7 @@ export type AccessTokenPayloadSchemaType = z.infer<
 
 export function signAccessToken(
   payload: Omit<AccessTokenPayloadSchemaType, "type">,
-) {
+): string {
   return jwt.sign({ ...payload, type: "access" }, env.jwt.accessSecret, {
     algorithm: JWT_ALGORITHM,
     // env validates the format; jsonwebtoken types it as a template literal, so a cast is needed
@@ -26,8 +26,8 @@ export function signAccessToken(
 
 // Throws jwt.TokenExpiredError / jwt.JsonWebTokenError / ZodError on an invalid token
 export function verifyAccessToken(token: string): AccessTokenPayloadSchemaType {
-  const decode = jwt.verify(token, env.jwt.accessSecret, {
+  const decoded = jwt.verify(token, env.jwt.accessSecret, {
     algorithms: [JWT_ALGORITHM],
   });
-  return AccessTokenPayloadSchema.parse(decode);
+  return AccessTokenPayloadSchema.parse(decoded);
 }

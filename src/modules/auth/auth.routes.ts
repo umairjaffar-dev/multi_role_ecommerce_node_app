@@ -3,6 +3,7 @@ import { validate } from "../../middlewares/validate.js";
 import { LoginUserSchema, RegisterUserSchema } from "./auth.validation.js";
 import {
   userLoginController,
+  userLogoutController,
   userRefreshTokenController,
   userRegisterController,
 } from "./auth.controller.js";
@@ -23,4 +24,9 @@ authRouter
 authRouter
   .route("/refresh")
   .post(userRefreshTokenController)
+  .all(methodNotAllowed(["POST"]));
+
+authRouter
+  .route("/logout")
+  .post(userLogoutController)
   .all(methodNotAllowed(["POST"]));

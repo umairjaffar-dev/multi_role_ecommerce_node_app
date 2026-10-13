@@ -13,5 +13,10 @@ export function hashRefreshToken(token: string): string {
 }
 
 export function getRefreshTokenExpiryDate(): Date {
-  return new Date(Date.now() + env.refreshToken.ttlDays * MS_PER_DAY);
+  return new Date(Date.now() + getRefreshTokenTtlMs());
+}
+
+// Single source for the refresh token lifetime: used for the DB expiry and the cookie maxAge
+export function getRefreshTokenTtlMs(): number {
+  return env.refreshToken.ttlDays * MS_PER_DAY;
 }

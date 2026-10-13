@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import {
   userLoginService,
+  userLogoutService,
   userRefreshTokenService,
   userRegisterService,
 } from "./auth.service.js";
@@ -9,6 +10,7 @@ import type {
   RegisterUserSchemaType,
 } from "./auth.validation.js";
 import {
+  clearRefreshTokenCookie,
   REFRESH_TOKEN_COOKIE_NAME,
   setRefreshTokenCookie,
 } from "../../lib/cookies.js";
@@ -43,9 +45,14 @@ export async function userLoginController(
   });
 }
 
+function readRefreshTokenCookie(req: Request): string | undefined {
+  const value: unknown = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
 export async function userRefreshTokenController(req: Request, res: Response) {
-  const presentedToken: unknown = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
-  if (typeof presentedToken !== "string" || presentedToken.length === 0) {
+  const presentedToken = readRefreshTokenCookie(req);
+  if (!presentedToken) {
     throw new AppError(
       401,
       "Refresh token is missing",
@@ -64,4 +71,14 @@ export async function userRefreshTokenController(req: Request, res: Response) {
     success: true,
     data: { ...user, accessToken },
   });
+}
+
+export async function userLogoutController(req: Request, res: Response) {
+  await userLogoutService(readRefreshTokenCookie(req));
+
+  clearRefreshTokenCookie(res);
+
+  req.log.info("User logged out");
+
+  res.status(204).send();
 }

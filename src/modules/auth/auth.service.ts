@@ -8,12 +8,13 @@ import {
 } from "../../db/schema/index.js";
 import { AppError } from "../../utils/AppError.js";
 import { isUniqueViolation } from "../../utils/dbErrors.js";
-import {
-  type LoginUserSchemaType,
-  type RegisterUserSchemaType,
+import type {
+  LoginUserSchemaType,
+  RegisterUserSchemaType,
 } from "./auth.validation.js";
 import bcrypt from "bcrypt";
 import { signAccessToken } from "../../lib/jwt.js";
+import { logger } from "../../lib/logger.js";
 import {
   generateRefreshToken,
   getRefreshTokenExpiryDate,
@@ -24,6 +25,10 @@ export type PublicUserType = Pick<
   UserType,
   "id" | "name" | "email" | "role" | "createdAt"
 >;
+
+// A token revoked this recently was most likely rotated by a parallel request from the same client
+// (e.g. two browser tabs refreshing at once), not stolen, so it does not trigger reuse detection
+const REUSE_GRACE_PERIOD_MS = 10_000;
 
 // Columns that are safe to return to the client (never passwordHash)
 const publicUserColumns = {
@@ -76,10 +81,13 @@ export type AuthSessionType = {
   refreshToken: string;
 };
 
+// Compared against when the email does not exist, so both paths take the same time
 const dummyPasswordHashPromise = bcrypt.hash(
   "dummy-password-for-timing",
   env.security.bcryptSaltRounds,
 );
+
+const authLogger = logger.child({ module: "auth" });
 
 async function createRefreshToken(
   executor: DbExecutorType,
@@ -139,12 +147,27 @@ export async function userLoginService(
   return { user: publicUser, accessToken, refreshToken };
 }
 
+async function revokeAllUserRefreshTokens(
+  executor: DbExecutorType,
+  userId: string,
+): Promise<void> {
+  await executor
+    .update(refreshTokensTable)
+    .set({ revokedAt: new Date() })
+    .where(
+      and(
+        eq(refreshTokensTable.userId, userId),
+        isNull(refreshTokensTable.revokedAt),
+      ),
+    );
+}
+
 export async function userRefreshTokenService(
   presentedToken: string,
 ): Promise<AuthSessionType> {
   const tokenHash = hashRefreshToken(presentedToken);
 
-  return db.transaction(async (tx) => {
+  const session = await db.transaction(async (tx) => {
     const [revokedToken] = await tx
       .update(refreshTokensTable)
       .set({ revokedAt: new Date() })
@@ -157,31 +180,9 @@ export async function userRefreshTokenService(
       )
       .returning({ userId: refreshTokensTable.userId });
 
+    // Nothing was changed; the reason is investigated outside the transaction
     if (!revokedToken) {
-      // Find out why it failed, only to return a precise error code
-      const [existingToken] = await tx
-        .select({
-          expiresAt: refreshTokensTable.expiresAt,
-          revokedAt: refreshTokensTable.revokedAt,
-        })
-        .from(refreshTokensTable)
-        .where(eq(refreshTokensTable.tokenHash, tokenHash))
-        .limit(1);
-
-      if (
-        existingToken &&
-        !existingToken.revokedAt &&
-        existingToken.expiresAt <= new Date()
-      ) {
-        throw new AppError(
-          401,
-          "Refresh token has expired",
-          "REFRESH_TOKEN_EXPIRED",
-        );
-      }
-
-      // Unknown or already revoked (reuse detection comes in Step 9c)
-      throw new AppError(401, "Invalid refresh token", "REFRESH_TOKEN_INVALID");
+      return null;
     }
 
     const [user] = await tx
@@ -209,4 +210,62 @@ export async function userRefreshTokenService(
 
     return { user: publicUser, accessToken, refreshToken };
   });
+  if (session) {
+    return session;
+  }
+
+  // Find out why it failed, only to return a precise error code
+  const [existingToken] = await db
+    .select({
+      userId: refreshTokensTable.userId,
+      expiresAt: refreshTokensTable.expiresAt,
+      revokedAt: refreshTokensTable.revokedAt,
+    })
+    .from(refreshTokensTable)
+    .where(eq(refreshTokensTable.tokenHash, tokenHash))
+    .limit(1);
+
+  if (!existingToken) {
+    throw new AppError(401, "Invalid refresh token", "REFRESH_TOKEN_INVALID");
+  }
+  if (existingToken.revokedAt) {
+    const revokedAgoMs = Date.now() - existingToken.revokedAt.getTime();
+    if (revokedAgoMs <= REUSE_GRACE_PERIOD_MS) {
+      throw new AppError(401, "Invalid refresh token", "REFRESH_TOKEN_INVALID");
+    }
+
+    await revokeAllUserRefreshTokens(db, existingToken.userId);
+
+    authLogger.warn(
+      { userId: existingToken.userId },
+      "Refresh token reuse detected, all sessions revoked",
+    );
+
+    throw new AppError(
+      401,
+      "Refresh token reuse detected, please log in again",
+      "REFRESH_TOKEN_REUSED",
+    );
+  }
+
+  throw new AppError(401, "Refresh token has expired", "REFRESH_TOKEN_EXPIRED");
+}
+
+// Idempotent: logging out with a missing, unknown or already revoked token still succeeds
+export async function userLogoutService(
+  presentedToken: string | undefined,
+): Promise<void> {
+  if (!presentedToken) {
+    return;
+  }
+
+  await db
+    .update(refreshTokensTable)
+    .set({ revokedAt: new Date() })
+    .where(
+      and(
+        eq(refreshTokensTable.tokenHash, hashRefreshToken(presentedToken)),
+        isNull(refreshTokensTable.revokedAt),
+      ),
+    );
 }

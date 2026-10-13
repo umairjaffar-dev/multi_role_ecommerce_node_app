@@ -1,4 +1,4 @@
-import type { UserRoleType } from "../db/schema/users.schema.ts";
+import type { UserRoleType } from "../db/schema/index.ts";
 
 export type AuthUserType = {
   id: string;
