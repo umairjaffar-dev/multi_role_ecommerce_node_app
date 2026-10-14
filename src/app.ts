@@ -31,7 +31,7 @@ export function createApp() {
 
   // 3. Request logging with a unique request ID per request
   app.use(
-    pinoHttp({
+  pinoHttp({
       logger: logger,
       genReqId: (req, res) => {
         const existingId = req.headers["x-request-id"];

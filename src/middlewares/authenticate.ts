@@ -3,19 +3,29 @@ import { AppError } from "../utils/AppError.js";
 import jwt from "jsonwebtoken";
 import { verifyAccessToken } from "../lib/jwt.js";
 
-const BEARER_PREFIX = "Bearer ";
+const BEARER_SCHEME = "bearer";
+
+// Auth scheme names are case-insensitive (RFC 7235): "Bearer", "bearer" and "BEARER" are all valid
+function extractBearerToken(header: string | undefined): string | null {
+  if (!header) return null;
+
+  const [scheme, token, ...rest] = header.trim().split(/\s+/);
+  if (scheme?.toLowerCase() !== BEARER_SCHEME || !token || rest.length > 0) {
+    return null;
+  }
+
+  return token;
+}
 
 export function authenticate(req: Request, res: Response, next: NextFunction) {
-  const header = req.headers.authorization;
+  const token = extractBearerToken(req.headers.authorization);
 
-  if (!header?.startsWith(BEARER_PREFIX)) {
+  if (!token) {
     res.setHeader("WWW-Authenticate", "Bearer");
     return next(
       new AppError(401, "Authentication required", "AUTH_TOKEN_MISSING"),
     );
   }
-
-  const token = header.slice(BEARER_PREFIX.length).trim();
 
   try {
     const payload = verifyAccessToken(token);
