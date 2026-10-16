@@ -55,3 +55,9 @@ export function validate(schemas: RequestSchemasType) {
     next();
   };
 }
+
+// Express types req.query as raw strings (ParsedQs). After validate({ query }) it holds the parsed
+// schema output (numbers, booleans, defaults), so read it through this helper instead of req.query.
+export function getValidatedQuery<TQuery>(req: Request): TQuery {
+  return req.query as unknown as TQuery;
+}
