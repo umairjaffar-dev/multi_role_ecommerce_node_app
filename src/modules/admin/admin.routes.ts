@@ -4,6 +4,7 @@ import { requiredRole } from "../../middlewares/requireRole.js";
 import { adminPingController } from "./admin.controller.js";
 import { methodNotAllowed } from "../../middlewares/methodNotAllowed.js";
 import { adminCategoriesRouter } from "../categories/categories.routes.js";
+import { adminProductsRouter } from "../products/products.routes.js";
 
 export const adminRouter = Router();
 
@@ -18,3 +19,4 @@ adminRouter
 
 // The categories are access by only admin.
 adminRouter.use("/categories", adminCategoriesRouter);
+adminRouter.use("/products", adminProductsRouter);

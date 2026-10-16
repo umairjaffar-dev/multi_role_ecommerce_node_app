@@ -144,13 +144,12 @@ export async function categoryUpdateService(
         name: input.name,
         slug: input.slug,
         description: input.description,
-        isActive: input.isActive ?? true,
+        isActive: input.isActive,
       })
       .where(eq(categoriesTable.id, id))
       .returning();
 
-    if (!category)
-      throw new Error("Insert did not return the created category");
+    if (!category) throw categoryNotFound();
 
     return category;
   } catch (error) {

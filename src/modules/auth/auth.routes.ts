@@ -8,22 +8,35 @@ import {
   userRegisterController,
 } from "./auth.controller.js";
 import { methodNotAllowed } from "../../middlewares/methodNotAllowed.js";
+import {
+  loginRateLimiter,
+  refreshRateLimiter,
+  registerRateLimiter,
+} from "../../middlewares/rateLimit.js";
 
 export const authRouter = Router();
 
 authRouter
   .route("/register")
-  .post(validate({ body: RegisterUserSchema }), userRegisterController)
+  .post(
+    registerRateLimiter,
+    validate({ body: RegisterUserSchema }),
+    userRegisterController,
+  )
   .all(methodNotAllowed(["POST"]));
 
 authRouter
   .route("/login")
-  .post(validate({ body: LoginUserSchema }), userLoginController)
+  .post(
+    loginRateLimiter,
+    validate({ body: LoginUserSchema }),
+    userLoginController,
+  )
   .all(methodNotAllowed(["POST"]));
 
 authRouter
   .route("/refresh")
-  .post(userRefreshTokenController)
+  .post(refreshRateLimiter, userRefreshTokenController)
   .all(methodNotAllowed(["POST"]));
 
 authRouter

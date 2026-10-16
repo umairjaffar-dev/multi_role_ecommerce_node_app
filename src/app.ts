@@ -11,6 +11,8 @@ import { notFound } from "./middlewares/notFound.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { authenticate } from "./middlewares/authenticate.js";
 
+const REQUEST_ID_REGEX = /^[A-Za-z0-9-]{1,64}$/;
+
 export function createApp() {
   const app = express();
 
@@ -31,11 +33,15 @@ export function createApp() {
 
   // 3. Request logging with a unique request ID per request
   app.use(
-  pinoHttp({
+    pinoHttp({
       logger: logger,
       genReqId: (req, res) => {
         const existingId = req.headers["x-request-id"];
-        const id = typeof existingId === "string" ? existingId : randomUUID();
+        const id =
+          typeof existingId === "string" && REQUEST_ID_REGEX.test(existingId)
+            ? existingId
+            : randomUUID();
+            
         res.setHeader("x-request-id", id);
         return id;
       },

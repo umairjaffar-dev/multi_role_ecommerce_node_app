@@ -3,4 +3,5 @@
 export * from "./users.schema.js";
 export * from "./refreshTokens.schema.js";
 export * from "./relations.js";
-export * from "./categories.schema.js"
+export * from "./categories.schema.js";
+export * from "./product.schema.js";
