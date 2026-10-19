@@ -12,7 +12,7 @@ import {
 
 export const userRoleEnum = pgEnum("user_role", ["user", "admin"]);
 
-export const users = pgTable(
+export const usersTable = pgTable(
   "users",
   {
     id: uuid().primaryKey().defaultRandom(),
@@ -28,6 +28,6 @@ export const users = pgTable(
   ],
 );
 
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
-export type UserRole = (typeof userRoleEnum.enumValues)[number];
+export type UserType = typeof usersTable.$inferSelect;
+export type NewUserType = typeof usersTable.$inferInsert;
+export type UserRoleType = (typeof userRoleEnum.enumValues)[number];

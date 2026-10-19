@@ -23,7 +23,13 @@ export const db = drizzle({
   casing: "snake_case",
 });
 
-export type Database = typeof db;
+export type DatabaseType = typeof db;
+// A transaction object exposes the same query API as `db`
+export type TransactionType = Parameters<
+  Parameters<DatabaseType["transaction"]>[0]
+>[0];
+// Accept either, so a helper can run standalone or inside a caller's transaction
+export type DbExecutorType = DatabaseType | TransactionType;
 
 export async function checkDatabaseConnection(): Promise<void> {
   await db.execute(sql`SELECT 1`);

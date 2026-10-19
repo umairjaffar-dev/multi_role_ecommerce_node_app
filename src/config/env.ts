@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import { z } from "zod";
 
 dotenv.config({ quiet: true });
+const JWT_DURATION_REGEX = /^\d+[smhd]$/;
 
 const rawEnv = Object.fromEntries(
   Object.entries(process.env).map(([key, value]) => [
@@ -30,11 +31,19 @@ const EnvSchema = z.object({
   JWT_ACCESS_SECRET: z
     .string()
     .min(32, "JWT_ACCESS_SECRET must be at least 32 characters"),
-  JWT_REFRESH_SECRET: z
+  JWT_ACCESS_EXPIRES_IN: z
     .string()
-    .min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
-  JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
-  JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+    .regex(
+      JWT_DURATION_REGEX,
+      "JWT_ACCESS_EXPIRES_IN must look like 15m, 1h or 7d",
+    )
+    .default("15m"),
+
+  // ── Refresh token ──
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(7),
+
+  // ── Security ──
+  BCRYPT_SALT_ROUNDS: z.coerce.number().int().min(10).max(15).default(12),
 });
 
 const parsed = EnvSchema.safeParse(rawEnv);
@@ -63,10 +72,16 @@ export const env = {
 
   jwt: {
     accessSecret: e.JWT_ACCESS_SECRET,
-    refreshSecret: e.JWT_REFRESH_SECRET,
     accessExpiresIn: e.JWT_ACCESS_EXPIRES_IN,
-    refreshExpiresIn: e.JWT_REFRESH_EXPIRES_IN,
+  },
+
+  refreshToken: {
+    ttlDays: e.REFRESH_TOKEN_TTL_DAYS,
+  },
+
+  security: {
+    bcryptSaltRounds: e.BCRYPT_SALT_ROUNDS,
   },
 } as const;
 
-export type Env = typeof env;
+export type EnvType = typeof env;
