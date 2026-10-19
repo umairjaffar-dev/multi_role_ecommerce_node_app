@@ -4,6 +4,7 @@ import { SlugSchema } from "../../utils/commonSchemas.js";
 const MAX_PRICE_IN_PAISA = 1_000_000_000;
 const MAX_STOCK = 1_000_000;
 
+// ----------------------------- Create Product Schema -----------------------------
 export const CreateProductSchema = z.object({
   name: z
     .string({ error: "Name is required" })
@@ -41,3 +42,11 @@ export const CreateProductSchema = z.object({
 });
 
 export type CreateProductSchemaType = z.infer<typeof CreateProductSchema>;
+
+// ----------------------------- Update Product Schema -----------------------------
+export const UpdateProductSchema = CreateProductSchema.partial().refine(
+  (data) => Object.keys(data).length > 0,
+  { message: "Provide at least one field to update" },
+);
+
+export type UpdateProductSchemaType = z.infer<typeof UpdateProductSchema>;
