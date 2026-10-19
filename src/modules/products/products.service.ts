@@ -84,6 +84,8 @@ export async function productGetByIdService(id: string): Promise<ProductType> {
 
   return product;
 }
+
+// Update product.
 export async function productUpdateService(
   id: string,
   input: UpdateProductSchemaType,
@@ -91,6 +93,8 @@ export async function productUpdateService(
   try {
     const [product] = await db
       .update(productsTable)
+      // undefined fields are skipped by Drizzle, so only the sent fields change.
+      // The slug is NOT rebuilt when the name changes: existing product URLs must keep working.
       .set({
         categoryId: input.categoryId,
         name: input.name,
@@ -109,4 +113,18 @@ export async function productUpdateService(
   } catch (error) {
     mapProductWriteError(error, input.slug);
   }
+}
+
+// Soft delete product.
+export async function productDeleteService(id: string): Promise<void> {
+  const [deleted] = await db
+    .update(productsTable)
+    .set({
+      deletedAt: new Date(),
+    })
+    // Already deleted → 404, and the original deletedAt is not overwritten
+    .where(and(eq(productsTable.id, id), isNull(productsTable.deletedAt)))
+    .returning({ id: productsTable.id });
+
+  if (!deleted) throw productNotFound();
 }

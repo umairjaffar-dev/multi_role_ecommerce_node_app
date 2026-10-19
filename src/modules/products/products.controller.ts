@@ -1,6 +1,14 @@
 import type { NextFunction, Request, Response } from "express";
-import type { CreateProductSchemaType, UpdateProductSchemaType } from "./products.validation.js";
-import { productCreateService, productGetByIdService, productUpdateService } from "./products.service.js";
+import type {
+  CreateProductSchemaType,
+  UpdateProductSchemaType,
+} from "./products.validation.js";
+import {
+  productCreateService,
+  productDeleteService,
+  productGetByIdService,
+  productUpdateService,
+} from "./products.service.js";
 import type { IdParamSchemaType } from "../../utils/commonSchemas.js";
 
 export async function productCreateController(
@@ -20,7 +28,6 @@ export async function productCreateController(
 export async function productGetByIdController(
   req: Request<IdParamSchemaType>,
   res: Response,
-  next: NextFunction,
 ) {
   const product = await productGetByIdService(req.params.id);
   res.status(200).json({ success: true, data: product });
@@ -30,7 +37,6 @@ export async function productGetByIdController(
 export async function productUpdateController(
   req: Request<IdParamSchemaType, unknown, UpdateProductSchemaType>,
   res: Response,
-  next: NextFunction,
 ) {
   const product = await productUpdateService(req.params.id, req.body);
 
@@ -40,4 +46,19 @@ export async function productUpdateController(
   );
 
   res.status(200).json({ success: true, data: product });
+}
+
+// Delete Product Controller.
+export async function productDeleteController(
+  req: Request<IdParamSchemaType>,
+  res: Response,
+) {
+  await productDeleteService(req.params.id);
+
+  req.log.info(
+    { productId: req.params.id, adminId: req.user?.id },
+    "Product deleted",
+  );
+
+  res.status(204).send();
 }

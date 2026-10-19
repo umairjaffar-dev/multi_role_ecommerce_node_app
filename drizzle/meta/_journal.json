@@ -36,6 +36,13 @@
       "when": 1792152534854,
       "tag": "0004_create_products_table",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792395256646,
+      "tag": "0005_products_slug_unique_among_live",
+      "breakpoints": true
     }
   ]
 }

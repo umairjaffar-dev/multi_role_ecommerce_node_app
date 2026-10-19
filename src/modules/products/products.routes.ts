@@ -1,8 +1,12 @@
 import { Router } from "express";
 import { validate } from "../../middlewares/validate.js";
-import { CreateProductSchema, UpdateProductSchema } from "./products.validation.js";
+import {
+  CreateProductSchema,
+  UpdateProductSchema,
+} from "./products.validation.js";
 import {
   productCreateController,
+  productDeleteController,
   productGetByIdController,
   productUpdateController,
 } from "./products.controller.js";
@@ -24,4 +28,5 @@ adminProductsRouter
     validate({ params: IdParamSchema, body: UpdateProductSchema }),
     productUpdateController,
   )
-  .all(methodNotAllowed(["GET", "PATCH"]));
+  .delete(validate({ params: IdParamSchema }), productDeleteController)
+  .all(methodNotAllowed(["GET", "PATCH", "DELETE"]));

@@ -35,7 +35,9 @@ export const productsTable = pgTable(
     ...timestamps,
   },
   (table) => [
-    uniqueIndex("products_slug_unique").on(table.slug),
+    uniqueIndex("products_slug_unique")
+      .on(table.slug)
+      .where(sql`${table.deletedAt} IS NULL`),
     index("products_category_id_idx").on(table.categoryId),
     // The database itself refuses impossible values, whatever the code does
     check("products_price_non_negative", sql`${table.priceInPaisa} >= 0`),
