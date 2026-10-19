@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
-import type { UserRoleType } from "../db/schema/users.schema.js";
+import type { UserRoleType } from "../db/schema/index.js";
 import { AppError } from "../utils/AppError.js";
 
-export function requiredRole(...allowedRoles: Array<UserRoleType>) {
+export function requireRole(...allowedRoles: Array<UserRoleType>) {
   return (req: Request, _res: Response, next: NextFunction) => {
     if (!req.user) {
       return next(

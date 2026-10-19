@@ -1,12 +1,13 @@
 import jwt, { type SignOptions } from "jsonwebtoken";
 import { z } from "zod";
 import { env } from "../config/env.js";
+import { userRoleEnum } from "../db/schema/index.js";
 
 const JWT_ALGORITHM = "HS256";
 
 export const AccessTokenPayloadSchema = z.object({
   sub: z.uuid(),
-  role: z.enum(["user", "admin"]),
+  role: z.enum(userRoleEnum.enumValues),
   type: z.literal("access"),
 });
 

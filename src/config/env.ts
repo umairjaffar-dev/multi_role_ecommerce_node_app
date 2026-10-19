@@ -13,9 +13,7 @@ const rawEnv = Object.fromEntries(
 
 const EnvSchema = z.object({
   // ── App ──
-  NODE_ENV: z
-    .enum(["development", "test", "production"])
-    .default("development"),
+  NODE_ENV: z.enum(["development", "test", "production"]),
   PORT: z.coerce.number().int().positive().default(4000),
   APP_URL: z.url(),
   CLIENT_URL: z.url(),
