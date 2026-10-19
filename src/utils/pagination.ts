@@ -4,7 +4,12 @@ export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
 
 export const PaginationQuerySchema = z.object({
-  page: z.coerce.number().int().min(1, "Page must be atleast 1").default(1),
+  page: z.coerce
+    .number()
+    .int()
+    .min(1, "Page must be atleast 1")
+    .max(10_000, "page is too large")
+    .default(1),
   limit: z.coerce
     .number()
     .int()

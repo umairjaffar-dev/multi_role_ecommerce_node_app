@@ -41,7 +41,7 @@ export function createApp() {
           typeof existingId === "string" && REQUEST_ID_REGEX.test(existingId)
             ? existingId
             : randomUUID();
-            
+
         res.setHeader("x-request-id", id);
         return id;
       },

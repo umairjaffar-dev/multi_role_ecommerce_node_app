@@ -1,5 +1,5 @@
 import jwt, { type SignOptions } from "jsonwebtoken";
-import z from "zod";
+import { z } from "zod";
 import { env } from "../config/env.js";
 
 const JWT_ALGORITHM = "HS256";

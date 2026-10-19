@@ -38,7 +38,7 @@ const EnvSchema = z.object({
       "JWT_ACCESS_EXPIRES_IN must look like 15m, 1h or 7d",
     )
     .default("15m"),
-    
+
   // ── Refresh token ──
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(7),
 

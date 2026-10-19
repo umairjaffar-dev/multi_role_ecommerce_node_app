@@ -31,23 +31,29 @@ export const UpdateCategorySchema = CreateCategorySchema.partial().refine(
 export type UpdateCategorySchemaType = z.infer<typeof UpdateCategorySchema>;
 
 export const ListCategoriesQuerySchema = PaginationQuerySchema.extend({
-    search: SearchQuerySchema,
-  });
-  
-  export type ListCategoriesQuerySchemaType = z.infer<typeof ListCategoriesQuerySchema>;
+  search: SearchQuerySchema,
+});
 
-  // Admin list can also filter by visibility: ?isActive=true / ?isActive=false
+export type ListCategoriesQuerySchemaType = z.infer<
+  typeof ListCategoriesQuerySchema
+>;
+
+// Admin list can also filter by visibility: ?isActive=true / ?isActive=false
 export const AdminListCategoriesQuerySchema = ListCategoriesQuerySchema.extend({
-    isActive: z
-      .enum(["true", "false"], { error: "isActive must be true or false" })
-      .transform((value) => value === "true")
-      .optional(),
-  });
-  
-  export type AdminListCategoriesQuerySchemaType = z.infer<typeof AdminListCategoriesQuerySchema>;
-  
-  export const CategorySlugParamSchema = z.object({
-    slug: SlugSchema,
-  });
-  
-  export type CategorySlugParamSchemaType = z.infer<typeof CategorySlugParamSchema>;
+  isActive: z
+    .enum(["true", "false"], { error: "isActive must be true or false" })
+    .transform((value) => value === "true")
+    .optional(),
+});
+
+export type AdminListCategoriesQuerySchemaType = z.infer<
+  typeof AdminListCategoriesQuerySchema
+>;
+
+export const CategorySlugParamSchema = z.object({
+  slug: SlugSchema,
+});
+
+export type CategorySlugParamSchemaType = z.infer<
+  typeof CategorySlugParamSchema
+>;

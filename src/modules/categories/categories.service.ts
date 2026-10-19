@@ -91,7 +91,7 @@ export async function categoryGetByIdService(
   const [category] = await db
     .select()
     .from(categoriesTable)
-    .where(and(eq(categoriesTable.id, id)))
+    .where(eq(categoriesTable.id, id))
     .limit(1);
 
   if (!category) throw categoryNotFound();
