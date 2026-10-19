@@ -51,6 +51,41 @@ const adminProductListColumns = {
   },
 };
 
+export type PublicProductType = Pick<
+  ProductType,
+  "id" | "name" | "slug" | "description" | "priceInPaisa" | "createdAt"
+> & {
+  inStock: boolean;
+  category: Pick<CategoryType, "name" | "slug">;
+};
+
+const publicProductColumns = {
+  id: productsTable.id,
+  name: productsTable.name,
+  slug: productsTable.slug,
+  description: productsTable.description,
+  priceInPaisa: productsTable.priceInPaisa,
+  createdAt: productsTable.createdAt,
+  // Selected only to compute inStock; never sent to the client as a number
+  stock: productsTable.stock,
+  category: { name: categoriesTable.name, slug: categoriesTable.slug },
+};
+
+// A product is visible only if it is active, not deleted, and its category is active too
+const isPubliclyVisible = and(
+  eq(productsTable.isActive, true),
+  isNull(productsTable.deletedAt),
+  eq(categoriesTable.isActive, true),
+);
+
+// Database row → API shape (DTO). Reused by the public list
+function toPublicProduct({
+  stock,
+  ...product
+}: { stock: number } & Omit<PublicProductType, "inStock">): PublicProductType {
+  return { ...product, inStock: stock > 0 };
+}
+
 function productNotFound(): AppError {
   return new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
 }
@@ -208,4 +243,24 @@ export async function productDeleteService(id: string): Promise<void> {
     .returning({ id: productsTable.id });
 
   if (!deleted) throw productNotFound();
+}
+
+// ----------------------- Public Routes -----------------------
+export async function productGetBySlugPublicService(
+  slug: string,
+): Promise<PublicProductType> {
+  const [row] = await db
+    .select(publicProductColumns)
+    .from(productsTable)
+    .innerJoin(
+      categoriesTable,
+      eq(productsTable.categoryId, categoriesTable.id),
+    )
+    .where(and(eq(productsTable.slug, slug)))
+    .limit(1);
+
+  // Hidden, deleted and missing all look the same to a customer: 404, never 403
+  if (!row) throw productNotFound();
+
+  return toPublicProduct(row);
 }

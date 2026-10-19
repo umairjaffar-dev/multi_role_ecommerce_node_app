@@ -2,12 +2,14 @@ import type { Request, Response } from "express";
 import type {
   AdminListProductsQuerySchemaType,
   CreateProductSchemaType,
+  ProductSlugParamSchemaType,
   UpdateProductSchemaType,
 } from "./products.validation.js";
 import {
   productCreateService,
   productDeleteService,
   productGetByIdService,
+  productGetBySlugPublicService,
   productListAdminService,
   productUpdateService,
 } from "./products.service.js";
@@ -41,6 +43,15 @@ export async function productGetByIdController(
   res: Response,
 ) {
   const product = await productGetByIdService(req.params.id);
+  res.status(200).json({ success: true, data: product });
+}
+
+export async function productGetBySlugPublicController(
+  req: Request<ProductSlugParamSchemaType>,
+  res: Response,
+) {
+  const product = await productGetBySlugPublicService(req.params.slug);
+  
   res.status(200).json({ success: true, data: product });
 }
 

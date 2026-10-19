@@ -74,3 +74,10 @@ export const UpdateProductSchema = CreateProductSchema.partial().refine(
 );
 
 export type UpdateProductSchemaType = z.infer<typeof UpdateProductSchema>;
+
+// ----------------------------- Public Product Slug Param Schema -----------------------------
+export const ProductSlugParamSchema = z.object({
+  slug: SlugSchema,
+});
+
+export type ProductSlugParamSchemaType = z.infer<typeof ProductSlugParamSchema>;
