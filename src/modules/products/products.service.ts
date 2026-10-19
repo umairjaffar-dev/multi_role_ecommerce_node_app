@@ -317,6 +317,11 @@ export async function productListPublicService(
   if (query.maxPrice !== undefined) {
     conditions.push(lte(productsTable.priceInPaisa, query.maxPrice));
   }
+  if (query.search) {
+    conditions.push(
+      ilike(productsTable.name, `%${escapeLikePattern(query.search)}%`),
+    );
+  }
   if (query.cursor) {
     conditions.push(buildAfterCursorCondition(query.cursor));
   }
