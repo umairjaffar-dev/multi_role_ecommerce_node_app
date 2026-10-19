@@ -7,7 +7,7 @@ import {
   ilike,
   isNotNull,
   isNull,
-  SQL,
+  type SQL,
 } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import {

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { validate } from "../../middlewares/validate.js";
 import {
+  AdminListProductsQuerySchema,
   CreateProductSchema,
   UpdateProductSchema,
 } from "./products.validation.js";
@@ -8,6 +9,7 @@ import {
   productCreateController,
   productDeleteController,
   productGetByIdController,
+  productListAdminController,
   productUpdateController,
 } from "./products.controller.js";
 import { methodNotAllowed } from "../../middlewares/methodNotAllowed.js";
@@ -17,8 +19,12 @@ export const adminProductsRouter = Router();
 
 adminProductsRouter
   .route("/")
+  .get(
+    validate({ query: AdminListProductsQuerySchema }),
+    productListAdminController,
+  )
   .post(validate({ body: CreateProductSchema }), productCreateController)
-  .all(methodNotAllowed(["POST"]));
+  .all(methodNotAllowed(["GET", "POST"]));
 
 // Route to get product or update it.
 adminProductsRouter

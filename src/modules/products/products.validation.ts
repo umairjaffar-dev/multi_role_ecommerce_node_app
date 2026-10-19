@@ -46,6 +46,8 @@ export const CreateProductSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+export type CreateProductSchemaType = z.infer<typeof CreateProductSchema>;
+
 // ----------------------------- Admin List Products Query Schema -----------------------------
 // live = not deleted (default), deleted = only soft-deleted, all = both
 export const PRODUCT_STATUSES = ["live", "deleted", "all"] as const;
@@ -64,8 +66,6 @@ export const AdminListProductsQuerySchema = PaginationQuerySchema.extend({
 export type AdminListProductsQuerySchemaType = z.infer<
   typeof AdminListProductsQuerySchema
 >;
-
-export type CreateProductSchemaType = z.infer<typeof CreateProductSchema>;
 
 // ----------------------------- Update Product Schema -----------------------------
 export const UpdateProductSchema = CreateProductSchema.partial().refine(
