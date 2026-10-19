@@ -1,6 +1,21 @@
-import { and, eq, isNull } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  getTableColumns,
+  ilike,
+  isNotNull,
+  isNull,
+  SQL,
+} from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { productsTable, type ProductType } from "../../db/schema/index.js";
+import {
+  categoriesTable,
+  productsTable,
+  type CategoryType,
+  type ProductType,
+} from "../../db/schema/index.js";
 import { AppError } from "../../utils/AppError.js";
 import {
   isForeignKeyViolation,
@@ -8,12 +23,33 @@ import {
 } from "../../utils/dbErrors.js";
 import { slugify } from "../../utils/slugify.js";
 import type {
+  AdminListProductsQuerySchemaType,
   CreateProductSchemaType,
   UpdateProductSchemaType,
 } from "./products.validation.js";
+import {
+  buildPaginationMeta,
+  getOffset,
+  type PaginatedResultType,
+} from "../../utils/pagination.js";
+import { escapeLikePattern } from "../../utils/sql.js";
 
 const SLUG_UNIQUE_CONSTRAINT = "products_slug_unique";
 const CATEGORY_FK_CONSTRAINT = "products_category_id_categories_id_fk";
+
+export type AdminProductListItemType = ProductType & {
+  category: Pick<CategoryType, "id" | "name" | "slug">;
+};
+
+const adminProductListColumns = {
+  ...getTableColumns(productsTable),
+  // A nested object in select() comes back as a nested object in each row
+  category: {
+    id: categoriesTable.id,
+    name: categoriesTable.name,
+    slug: categoriesTable.slug,
+  },
+};
 
 function productNotFound(): AppError {
   return new AppError(404, "Product not found", "PRODUCT_NOT_FOUND");
@@ -71,6 +107,51 @@ export async function productCreateService(
   } catch (error) {
     mapProductWriteError(error, slug);
   }
+}
+
+export async function productListAdminService(
+  query: AdminListProductsQuerySchemaType,
+): Promise<PaginatedResultType<AdminProductListItemType>> {
+  const conditions: Array<SQL> = [];
+
+  if (query.status === "live") conditions.push(isNull(productsTable.deletedAt));
+  if (query.status === "deleted") {
+    conditions.push(isNotNull(productsTable.deletedAt));
+  }
+  if (query.search) {
+    conditions.push(
+      ilike(productsTable.name, `%${escapeLikePattern(query.search)}%`),
+    );
+  }
+  if (query.categoryId) {
+    conditions.push(eq(productsTable.categoryId, query.categoryId));
+  }
+
+  if (query.isActive !== undefined) {
+    conditions.push(eq(productsTable.isActive, query.isActive));
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [items, [totalRow]] = await Promise.all([
+    db
+      .select(adminProductListColumns)
+      .from(productsTable)
+      // Every product has a category (NOT NULL foreign key), so an inner join never drops a row
+      .innerJoin(
+        categoriesTable,
+        eq(productsTable.categoryId, categoriesTable.id),
+      )
+      .where(where)
+      // Newest first; id breaks ties so rows never jump between pages
+      .orderBy(desc(productsTable.createdAt), desc(productsTable.id))
+      .limit(query.limit)
+      .offset(getOffset(query)),
+    // Filters only touch product columns, so the count does not need the join
+    db.select({ total: count() }).from(productsTable).where(where),
+  ]);
+
+  return { items, meta: buildPaginationMeta(query, totalRow?.total ?? 0) };
 }
 
 export async function productGetByIdService(id: string): Promise<ProductType> {

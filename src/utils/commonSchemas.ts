@@ -24,3 +24,10 @@ export const SearchQuerySchema = z
   .max(100, "search must be at most 100 characters")
   .optional()
   .transform((value) => (value ? value : undefined));
+
+// Query strings are always text, so "true"/"false" must be turned into a real boolean
+export function createBooleanQuerySchema(field: string) {
+  return z
+    .enum(["true", "false"], { error: `${field} must be true or false` })
+    .transform((value) => value === "true");
+}

@@ -12,7 +12,7 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "admin:promote": "tsx src/scripts/promoteAdmin.ts",
-    "format": "prettier --write src"
+    "format": "prettier --write src drizzle.config.ts tsconfig.json"
   },
   "keywords": [],
   "author": "",

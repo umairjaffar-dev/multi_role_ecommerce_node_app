@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { SlugSchema } from "../../utils/commonSchemas.js";
+import {
+  createBooleanQuerySchema,
+  SearchQuerySchema,
+  SlugSchema,
+} from "../../utils/commonSchemas.js";
+import { PaginationQuerySchema } from "../../utils/pagination.js";
 
 const MAX_PRICE_IN_PAISA = 1_000_000_000;
 const MAX_STOCK = 1_000_000;
@@ -40,6 +45,25 @@ export const CreateProductSchema = z.object({
     .optional(),
   isActive: z.boolean().optional(),
 });
+
+// ----------------------------- Admin List Products Query Schema -----------------------------
+// live = not deleted (default), deleted = only soft-deleted, all = both
+export const PRODUCT_STATUSES = ["live", "deleted", "all"] as const;
+
+export const AdminListProductsQuerySchema = PaginationQuerySchema.extend({
+  search: SearchQuerySchema,
+  categoryId: z.uuid("categoryId must be a valid UUID").optional(),
+  isActive: createBooleanQuerySchema("isActive").optional(),
+  status: z
+    .enum(PRODUCT_STATUSES, {
+      error: `status must be one of: ${PRODUCT_STATUSES.join(", ")}`,
+    })
+    .default("live"),
+});
+
+export type AdminListProductsQuerySchemaType = z.infer<
+  typeof AdminListProductsQuerySchema
+>;
 
 export type CreateProductSchemaType = z.infer<typeof CreateProductSchema>;
 

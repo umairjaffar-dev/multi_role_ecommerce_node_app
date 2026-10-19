@@ -1,5 +1,6 @@
-import type { NextFunction, Request, Response } from "express";
+import type { Request, Response } from "express";
 import type {
+  AdminListProductsQuerySchemaType,
   CreateProductSchemaType,
   UpdateProductSchemaType,
 } from "./products.validation.js";
@@ -7,9 +8,11 @@ import {
   productCreateService,
   productDeleteService,
   productGetByIdService,
+  productListAdminService,
   productUpdateService,
 } from "./products.service.js";
 import type { IdParamSchemaType } from "../../utils/commonSchemas.js";
+import { getValidatedQuery } from "../../middlewares/validate.js";
 
 export async function productCreateController(
   req: Request<unknown, unknown, CreateProductSchemaType>,
@@ -23,6 +26,14 @@ export async function productCreateController(
   );
 
   res.status(201).json({ success: true, data: product });
+}
+
+export async function productListAdminController(req: Request, res: Response) {
+  const query = getValidatedQuery<AdminListProductsQuerySchemaType>(req);
+
+  const { items, meta } = await productListAdminService(query);
+
+  res.status(200).json({ success: true, data: items, meta });
 }
 
 export async function productGetByIdController(
