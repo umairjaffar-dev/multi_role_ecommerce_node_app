@@ -12,7 +12,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "admin:promote": "tsx src/scripts/promoteAdmin.ts",
-    "format": "prettier --write src drizzle.config.ts tsconfig.json"
+    "format": "prettier --write src drizzle.config.ts tsconfig.json",
+    "check": "tsc --noEmit && prettier --check src"
   },
   "keywords": [],
   "author": "",

@@ -20,7 +20,7 @@ import { IdParamSchema } from "../../utils/commonSchemas.js";
 export const productsRouter = Router();
 
 productsRouter
-  .route(":/slug")
+  .route("/:slug")
   .get(
     validate({ params: ProductSlugParamSchema }),
     productGetBySlugPublicController,

@@ -256,7 +256,7 @@ export async function productGetBySlugPublicService(
       categoriesTable,
       eq(productsTable.categoryId, categoriesTable.id),
     )
-    .where(and(eq(productsTable.slug, slug)))
+    .where(and(eq(productsTable.slug, slug), isPubliclyVisible))
     .limit(1);
 
   // Hidden, deleted and missing all look the same to a customer: 404, never 403

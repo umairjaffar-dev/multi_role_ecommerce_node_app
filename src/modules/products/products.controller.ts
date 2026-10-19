@@ -51,7 +51,7 @@ export async function productGetBySlugPublicController(
   res: Response,
 ) {
   const product = await productGetBySlugPublicService(req.params.slug);
-  
+
   res.status(200).json({ success: true, data: product });
 }
 
