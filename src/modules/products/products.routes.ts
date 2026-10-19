@@ -3,6 +3,7 @@ import { validate } from "../../middlewares/validate.js";
 import {
   AdminListProductsQuerySchema,
   CreateProductSchema,
+  ListProductsQuerySchema,
   ProductSlugParamSchema,
   UpdateProductSchema,
 } from "./products.validation.js";
@@ -12,12 +13,22 @@ import {
   productGetByIdController,
   productGetBySlugPublicController,
   productListAdminController,
+  productListPublicController,
   productUpdateController,
 } from "./products.controller.js";
 import { methodNotAllowed } from "../../middlewares/methodNotAllowed.js";
 import { IdParamSchema } from "../../utils/commonSchemas.js";
 
 export const productsRouter = Router();
+
+// get all products publically.
+productsRouter
+  .route("/")
+  .get(
+    validate({ query: ListProductsQuerySchema }),
+    productListPublicController,
+  )
+  .all(methodNotAllowed(["GET"]));
 
 productsRouter
   .route("/:slug")

@@ -1,12 +1,15 @@
 import {
   and,
+  asc,
   count,
   desc,
   eq,
   getTableColumns,
+  gte,
   ilike,
   isNotNull,
   isNull,
+  lte,
   type SQL,
 } from "drizzle-orm";
 import { db } from "../../db/index.js";
@@ -25,6 +28,8 @@ import { slugify } from "../../utils/slugify.js";
 import type {
   AdminListProductsQuerySchemaType,
   CreateProductSchemaType,
+  ListProductsQuerySchemaType,
+  ProductSortType,
   UpdateProductSchemaType,
 } from "./products.validation.js";
 import {
@@ -58,6 +63,23 @@ export type PublicProductType = Pick<
   inStock: boolean;
   category: Pick<CategoryType, "name" | "slug">;
 };
+
+export type PublicProductListMetaType = {
+  limit: number;
+  hasNextPage: boolean;
+};
+
+export type PublicProductListResultType = {
+  items: Array<PublicProductType>;
+  meta: PublicProductListMetaType;
+};
+
+// Every sort ends with id, so two products with the same price/date still have a fixed order
+const PUBLIC_SORT_ORDER = {
+  newest: [desc(productsTable.createdAt), desc(productsTable.id)],
+  price_asc: [asc(productsTable.priceInPaisa), asc(productsTable.id)],
+  price_desc: [desc(productsTable.priceInPaisa), desc(productsTable.id)],
+} satisfies Record<ProductSortType, Array<SQL>>;
 
 const publicProductColumns = {
   id: productsTable.id,
@@ -246,6 +268,48 @@ export async function productDeleteService(id: string): Promise<void> {
 }
 
 // ----------------------- Public Routes -----------------------
+export async function productListPublicService(
+  query: ListProductsQuerySchemaType,
+): Promise<PublicProductListResultType> {
+  const conditions: Array<SQL> = [];
+
+  if (query.category) {
+    conditions.push(eq(categoriesTable.slug, query.category));
+  }
+  if (query.minPrice !== undefined) {
+    conditions.push(gte(productsTable.priceInPaisa, query.minPrice));
+  }
+  if (query.maxPrice !== undefined) {
+    conditions.push(lte(productsTable.priceInPaisa, query.maxPrice));
+  }
+  if (query.search) {
+    conditions.push(
+      ilike(productsTable.name, `%${escapeLikePattern(query.search)}%`),
+    );
+  }
+
+  const rows = await db
+    .select(publicProductColumns)
+    .from(productsTable)
+    .innerJoin(
+      categoriesTable,
+      eq(productsTable.categoryId, categoriesTable.id),
+    )
+    // The visibility rule is always applied first; filters can only narrow it down
+    .where(and(isPubliclyVisible, ...conditions))
+    .orderBy(...PUBLIC_SORT_ORDER[query.sort])
+    // One extra row tells us whether another page exists, without a COUNT query
+    .limit(query.limit + 1);
+
+  const hasNextPage = rows.length > query.limit;
+  const pageRows = hasNextPage ? rows.slice(0, query.limit) : rows;
+
+  return {
+    items: pageRows.map(toPublicProduct),
+    meta: { limit: query.limit, hasNextPage },
+  };
+}
+
 export async function productGetBySlugPublicService(
   slug: string,
 ): Promise<PublicProductType> {

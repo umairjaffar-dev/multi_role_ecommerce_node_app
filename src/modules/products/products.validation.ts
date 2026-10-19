@@ -81,3 +81,56 @@ export const ProductSlugParamSchema = z.object({
 });
 
 export type ProductSlugParamSchemaType = z.infer<typeof ProductSlugParamSchema>;
+
+// ----------------------------- Public List Products Query Schema -----------------------------
+export const PRODUCT_SORTS = ["newest", "price_asc", "price_desc"] as const;
+export type ProductSortType = (typeof PRODUCT_SORTS)[number];
+
+const PUBLIC_DEFAULT_PAGE_SIZE = 20;
+const PUBLIC_MAX_PAGE_SIZE = 50;
+
+// Query values arrive as text ("150000"), so they are coerced to numbers
+function createPriceQuerySchema(field: string) {
+  return z.coerce
+    .number({ error: `${field} must be a number` })
+    .int(`${field} must be a whole number of paisa`)
+    .min(0, `${field} cannot be negative`)
+    .max(MAX_PRICE_IN_PAISA, `${field} must be at most ${MAX_PRICE_IN_PAISA}`)
+    .optional();
+}
+
+export const ListProductsQuerySchema = z
+  .object({
+    category: SlugSchema.optional(),
+    minPrice: createPriceQuerySchema("minPrice"),
+    maxPrice: createPriceQuerySchema("maxPrice"),
+    search: SearchQuerySchema,
+    sort: z
+      .enum(PRODUCT_SORTS, {
+        error: `sort must be one of: ${PRODUCT_SORTS.join(", ")}`,
+      })
+      .default("newest"),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1, "limit must be at least 1")
+      .max(
+        PUBLIC_MAX_PAGE_SIZE,
+        `limit must be at most ${PUBLIC_MAX_PAGE_SIZE}`,
+      )
+      .default(PUBLIC_DEFAULT_PAGE_SIZE),
+  })
+  .refine(
+    (query) =>
+      query.minPrice === undefined ||
+      query.maxPrice === undefined ||
+      query.minPrice <= query.maxPrice,
+    {
+      message: "minPrice must be less than or equal to maxPrice",
+      path: ["minPrice"],
+    },
+  );
+
+export type ListProductsQuerySchemaType = z.infer<
+  typeof ListProductsQuerySchema
+>;
