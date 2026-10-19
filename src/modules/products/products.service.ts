@@ -10,6 +10,7 @@ import {
   isNotNull,
   isNull,
   lte,
+  sql,
   type SQL,
 } from "drizzle-orm";
 import { db } from "../../db/index.js";
@@ -29,6 +30,7 @@ import type {
   AdminListProductsQuerySchemaType,
   CreateProductSchemaType,
   ListProductsQuerySchemaType,
+  ProductCursorType,
   ProductSortType,
   UpdateProductSchemaType,
 } from "./products.validation.js";
@@ -38,6 +40,7 @@ import {
   type PaginatedResultType,
 } from "../../utils/pagination.js";
 import { escapeLikePattern } from "../../utils/sql.js";
+import { encodeCursor } from "../../utils/cursor.js";
 
 const SLUG_UNIQUE_CONSTRAINT = "products_slug_unique";
 const CATEGORY_FK_CONSTRAINT = "products_category_id_categories_id_fk";
@@ -67,6 +70,8 @@ export type PublicProductType = Pick<
 export type PublicProductListMetaType = {
   limit: number;
   hasNextPage: boolean;
+  // Send this back as ?cursor= to get the next page; null on the last page
+  nextCursor: string | null;
 };
 
 export type PublicProductListResultType = {
@@ -268,6 +273,36 @@ export async function productDeleteService(id: string): Promise<void> {
 }
 
 // ----------------------- Public Routes -----------------------
+// created_at as UTC text with all 6 microsecond digits, e.g. 2026-10-19T10:11:22.817123Z.
+// Postgres stores microseconds; a JS Date keeps only milliseconds, so a Date-based cursor would skip rows.
+const createdAtCursorValue = sql<string>`to_char(${productsTable.createdAt} AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')`;
+
+// Keyset condition: "rows that come after the cursor row in this sort order".
+// (a, b) > (x, y) is a row comparison: a > x, or a = x and b > y. The id settles ties.
+function buildAfterCursorCondition(cursor: ProductCursorType): SQL {
+  switch (cursor.sort) {
+    case "newest":
+      return sql`(${productsTable.createdAt}, ${productsTable.id}) < (${cursor.value}::timestamptz, ${cursor.id}::uuid)`;
+    case "price_asc":
+      return sql`(${productsTable.priceInPaisa}, ${productsTable.id}) > (${cursor.value}, ${cursor.id}::uuid)`;
+    case "price_desc":
+      return sql`(${productsTable.priceInPaisa}, ${productsTable.id}) < (${cursor.value}, ${cursor.id}::uuid)`;
+  }
+}
+
+function buildNextCursor(
+  sort: ProductSortType,
+  lastRow: { id: string; priceInPaisa: number; createdAtCursor: string },
+): string {
+  // Narrowing on sort lets TypeScript check that each sort carries the right value type
+  const cursor: ProductCursorType =
+    sort === "newest"
+      ? { sort, value: lastRow.createdAtCursor, id: lastRow.id }
+      : { sort, value: lastRow.priceInPaisa, id: lastRow.id };
+
+  return encodeCursor(cursor);
+}
+
 export async function productListPublicService(
   query: ListProductsQuerySchemaType,
 ): Promise<PublicProductListResultType> {
@@ -282,14 +317,12 @@ export async function productListPublicService(
   if (query.maxPrice !== undefined) {
     conditions.push(lte(productsTable.priceInPaisa, query.maxPrice));
   }
-  if (query.search) {
-    conditions.push(
-      ilike(productsTable.name, `%${escapeLikePattern(query.search)}%`),
-    );
+  if (query.cursor) {
+    conditions.push(buildAfterCursorCondition(query.cursor));
   }
 
   const rows = await db
-    .select(publicProductColumns)
+    .select({ ...publicProductColumns, createdAtCursor: createdAtCursorValue })
     .from(productsTable)
     .innerJoin(
       categoriesTable,
@@ -304,9 +337,16 @@ export async function productListPublicService(
   const hasNextPage = rows.length > query.limit;
   const pageRows = hasNextPage ? rows.slice(0, query.limit) : rows;
 
+  // The next page starts right after the last row of this page
+  const lastRow = pageRows.at(-1);
+  const nextCursor =
+    hasNextPage && lastRow ? buildNextCursor(query.sort, lastRow) : null;
+
   return {
-    items: pageRows.map(toPublicProduct),
-    meta: { limit: query.limit, hasNextPage },
+    items: pageRows.map(({ createdAtCursor: _createdAtCursor, ...row }) =>
+      toPublicProduct(row),
+    ),
+    meta: { limit: query.limit, hasNextPage, nextCursor },
   };
 }
 

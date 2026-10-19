@@ -1,0 +1,2 @@
+CREATE INDEX "products_created_at_id_idx" ON "products" USING btree ("created_at","id") WHERE "products"."deleted_at" IS NULL;--> statement-breakpoint
+CREATE INDEX "products_price_id_idx" ON "products" USING btree ("price_in_paisa","id") WHERE "products"."deleted_at" IS NULL;

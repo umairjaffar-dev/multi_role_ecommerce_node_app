@@ -43,6 +43,13 @@
       "when": 1792395256646,
       "tag": "0005_products_slug_unique_among_live",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792414298383,
+      "tag": "0006_add_products_cursor_indexes",
+      "breakpoints": true
     }
   ]
 }

@@ -39,6 +39,13 @@ export const productsTable = pgTable(
       .on(table.slug)
       .where(sql`${table.deletedAt} IS NULL`),
     index("products_category_id_idx").on(table.categoryId),
+    // Cursor pagination jumps straight to "after (value, id)" using these (shop list sorts)
+    index("products_created_at_id_idx")
+      .on(table.createdAt, table.id)
+      .where(sql`${table.deletedAt} IS NULL`),
+    index("products_price_id_idx")
+      .on(table.priceInPaisa, table.id)
+      .where(sql`${table.deletedAt} IS NULL`),
     // The database itself refuses impossible values, whatever the code does
     check("products_price_non_negative", sql`${table.priceInPaisa} >= 0`),
     check("products_stock_non_negative", sql`${table.stock} >= 0`),

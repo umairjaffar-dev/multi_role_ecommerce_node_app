@@ -5,9 +5,30 @@ import {
   SlugSchema,
 } from "../../utils/commonSchemas.js";
 import { PaginationQuerySchema } from "../../utils/pagination.js";
+import { decodeCursor } from "../../utils/cursor.js";
 
 const MAX_PRICE_IN_PAISA = 1_000_000_000;
 const MAX_STOCK = 1_000_000;
+const MAX_CURSOR_LENGTH = 300;
+
+// What a product cursor carries: the sort it belongs to, the last row's sort value, and its id.
+// newest uses a UTC timestamp string with microseconds (a JS Date would cut it to milliseconds).
+const CURSOR_TIMESTAMP_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{6}Z$/;
+
+const ProductCursorSchema = z.discriminatedUnion("sort", [
+  z.object({
+    sort: z.literal("newest"),
+    value: z.string().regex(CURSOR_TIMESTAMP_REGEX),
+    id: z.uuid(),
+  }),
+  z.object({
+    sort: z.literal(["price_asc", "price_desc"]),
+    value: z.number().int().min(0),
+    id: z.uuid(),
+  }),
+]);
+
+export type ProductCursorType = z.infer<typeof ProductCursorSchema>;
 
 // ----------------------------- Create Product Schema -----------------------------
 export const CreateProductSchema = z.object({
@@ -119,6 +140,18 @@ export const ListProductsQuerySchema = z
         `limit must be at most ${PUBLIC_MAX_PAGE_SIZE}`,
       )
       .default(PUBLIC_DEFAULT_PAGE_SIZE),
+    cursor: z
+      .string()
+      .max(MAX_CURSOR_LENGTH, { error: "cursor is invalid", abort: true })
+      .transform((value, ctx) => {
+        const cursor = decodeCursor(value, ProductCursorSchema);
+        if (!cursor) {
+          ctx.addIssue({ code: "custom", message: "cursor is invalid" });
+          return z.NEVER;
+        }
+        return cursor;
+      })
+      .optional(),
   })
   .refine(
     (query) =>
@@ -129,7 +162,12 @@ export const ListProductsQuerySchema = z
       message: "minPrice must be less than or equal to maxPrice",
       path: ["minPrice"],
     },
-  );
+  )
+  // A price cursor means nothing in a "newest" list, so a changed sort must start from page 1
+  .refine((query) => !query.cursor || query.cursor.sort === query.sort, {
+    message: "cursor belongs to a different sort; request the first page again",
+    path: ["cursor"],
+  });
 
 export type ListProductsQuerySchemaType = z.infer<
   typeof ListProductsQuerySchema
