@@ -56,7 +56,10 @@ const EnvSchema = z.object({
     .min(1, "S3_REGION is required"),
   S3_BUCKET: z
     .string({ error: "S3_BUCKET is required" })
-    .min(3, "S3_BUCKET is required"),
+    .regex(
+      /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/,
+      "S3_BUCKET must be 3-63 lowercase letters, numbers, dots or hyphens (no underscores)",
+    ),
   S3_ACCESS_KEY_ID: z
     .string({ error: "S3_ACCESS_KEY_ID is required" })
     .min(1, "S3_ACCESS_KEY_ID is required"),
