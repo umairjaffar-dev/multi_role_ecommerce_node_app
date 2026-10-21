@@ -2,6 +2,7 @@ import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { logger } from "./lib/logger.js";
 import { checkDatabaseConnection, closeDatabase } from "./db/index.js";
+import { storage } from "./lib/storage/index.js";
 
 async function bootstrap() {
   // Fail fast: do not accept traffic if the database is unreachable
@@ -12,6 +13,16 @@ async function bootstrap() {
     logger.fatal({ err }, "Failed to connect to the database");
     process.exit(1);
   }
+
+  // Same rule for object storage: product images would fail on every upload otherwise
+  try {
+    await storage.checkConnection();
+    logger.info("Object storage connected");
+  } catch (err) {
+    logger.fatal({ err }, "Failed to connect to object storage");
+    process.exit(1);
+  }
+
   const app = createApp();
 
   const server = app.listen(env.port, () => {

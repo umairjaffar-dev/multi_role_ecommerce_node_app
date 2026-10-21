@@ -46,7 +46,12 @@ export function createApp() {
         return id;
       },
       serializers: {
-        req: (req) => ({ id: req.id, method: req.method, url: req.url }),
+        req: (req) => ({
+          id: req.id,
+          method: req.method,
+          url: req.url,
+          userAgent: req.headers["user-agent"],
+        }),
         res: (res) => ({ statusCode: res.statusCode }),
       },
       customLogLevel: (_req, res, err) => {

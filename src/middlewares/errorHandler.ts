@@ -28,7 +28,7 @@ export function errorHandler(
 ) {
   // Known, expected errors (validation, not found, forbidden, ...)
   if (err instanceof AppError) {
-    req.log.warn({ err, code: err.code }, err.message);
+    req.log.warn({ code: err.code, statusCode: err.statusCode }, err.message);
     return res.status(err.statusCode).json({
       success: false,
       error: { code: err.code, message: err.message, details: err.details },

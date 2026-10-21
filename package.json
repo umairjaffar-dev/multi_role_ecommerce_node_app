@@ -13,13 +13,16 @@
     "db:studio": "drizzle-kit studio",
     "admin:promote": "tsx src/scripts/promoteAdmin.ts",
     "format": "prettier --write src drizzle.config.ts tsconfig.json",
-    "check": "tsc --noEmit && prettier --check src"
+    "check": "tsc --noEmit && prettier --check src",
+    "storage:check": "tsx src/scripts/checkStorage.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1154.0",
+    "@aws-sdk/s3-request-presigner": "^3.1154.0",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
