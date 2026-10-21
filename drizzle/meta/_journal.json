@@ -50,6 +50,13 @@
       "when": 1792414298383,
       "tag": "0006_add_products_cursor_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792582680947,
+      "tag": "0007_create_product_images_table",
+      "breakpoints": true
     }
   ]
 }

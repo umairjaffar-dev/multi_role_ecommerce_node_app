@@ -18,6 +18,7 @@ import {
 } from "./products.controller.js";
 import { methodNotAllowed } from "../../middlewares/methodNotAllowed.js";
 import { IdParamSchema } from "../../utils/commonSchemas.js";
+import { adminProductImagesRouter } from "../productImages/productImages.routes.js";
 
 export const productsRouter = Router();
 
@@ -39,6 +40,8 @@ productsRouter
   .all(methodNotAllowed(["GET"]));
 
 export const adminProductsRouter = Router();
+
+adminProductsRouter.use("/:id/images", adminProductImagesRouter);
 
 adminProductsRouter
   .route("/")
