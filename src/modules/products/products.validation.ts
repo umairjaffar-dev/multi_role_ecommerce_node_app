@@ -96,6 +96,14 @@ export const UpdateProductSchema = CreateProductSchema.partial().refine(
 
 export type UpdateProductSchemaType = z.infer<typeof UpdateProductSchema>;
 
+// ----------------------------- Restore Product Schema -----------------------------
+// Body is optional. A new slug is only needed when a live product took the old one meanwhile
+export const RestoreProductSchema = z.object({
+  slug: SlugSchema.optional(),
+});
+
+export type RestoreProductSchemaType = z.infer<typeof RestoreProductSchema>;
+
 // ----------------------------- Public Product Slug Param Schema -----------------------------
 export const ProductSlugParamSchema = z.object({
   slug: SlugSchema,
@@ -126,6 +134,8 @@ export const ListProductsQuerySchema = z
     minPrice: createPriceQuerySchema("minPrice"),
     maxPrice: createPriceQuerySchema("maxPrice"),
     search: SearchQuerySchema,
+    // true = only products in stock, false = only sold-out products
+    inStock: createBooleanQuerySchema("inStock").optional(),
     sort: z
       .enum(PRODUCT_SORTS, {
         error: `sort must be one of: ${PRODUCT_SORTS.join(", ")}`,
