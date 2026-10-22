@@ -5,6 +5,7 @@ import {
   desc,
   eq,
   getTableColumns,
+  gt,
   gte,
   ilike,
   isNotNull,
@@ -32,6 +33,7 @@ import type {
   ListProductsQuerySchemaType,
   ProductCursorType,
   ProductSortType,
+  RestoreProductSchemaType,
   UpdateProductSchemaType,
 } from "./products.validation.js";
 import {
@@ -305,6 +307,44 @@ export async function productDeleteService(id: string): Promise<void> {
   if (!deleted) throw productNotFound();
 }
 
+// Undo a soft delete. Images were never removed, so the product comes back exactly as it was
+export async function productRestoreService(
+  id: string,
+  input: RestoreProductSchemaType,
+): Promise<AdminProductDetailType> {
+  try {
+    const [restored] = await db
+      .update(productsTable)
+      // undefined slug is skipped by Drizzle, so the old slug is kept unless a new one is sent
+      .set({ deletedAt: null, slug: input.slug })
+      .where(and(eq(productsTable.id, id), isNotNull(productsTable.deletedAt)))
+      .returning({ id: productsTable.id });
+
+    if (!restored) {
+      // Nothing changed: tell "does not exist" apart from "is not deleted"
+      const [existing] = await db
+        .select({ id: productsTable.id })
+        .from(productsTable)
+        .where(eq(productsTable.id, id))
+        .limit(1);
+      if (!existing) throw productNotFound();
+      throw new AppError(409, "Product is not deleted", "PRODUCT_NOT_DELETED");
+    }
+  } catch (error) {
+    // The slug is unique only among live products, so a live product may have taken it
+    if (isUniqueViolation(error, SLUG_UNIQUE_CONSTRAINT)) {
+      throw new AppError(
+        409,
+        "A live product already uses this slug. Send a new slug in the request body to restore it",
+        "PRODUCT_SLUG_EXISTS",
+      );
+    }
+    throw error;
+  }
+
+  return productGetByIdService(id);
+}
+
 // ----------------------- Public Routes -----------------------
 // created_at as UTC text with all 6 microsecond digits, e.g. 2026-10-19T10:11:22.817123Z.
 // Postgres stores microseconds; a JS Date keeps only milliseconds, so a Date-based cursor would skip rows.
@@ -349,6 +389,11 @@ export async function productListPublicService(
   }
   if (query.maxPrice !== undefined) {
     conditions.push(lte(productsTable.priceInPaisa, query.maxPrice));
+  }
+  if (query.inStock !== undefined) {
+    conditions.push(
+      query.inStock ? gt(productsTable.stock, 0) : eq(productsTable.stock, 0),
+    );
   }
   if (query.search) {
     conditions.push(

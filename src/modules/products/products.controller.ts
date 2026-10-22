@@ -4,6 +4,7 @@ import type {
   CreateProductSchemaType,
   ListProductsQuerySchemaType,
   ProductSlugParamSchemaType,
+  RestoreProductSchemaType,
   UpdateProductSchemaType,
 } from "./products.validation.js";
 import {
@@ -13,6 +14,7 @@ import {
   productGetBySlugPublicService,
   productListAdminService,
   productListPublicService,
+  productRestoreService,
   productUpdateService,
 } from "./products.service.js";
 import type { IdParamSchemaType } from "../../utils/commonSchemas.js";
@@ -95,4 +97,18 @@ export async function productDeleteController(
   );
 
   res.status(204).send();
+}
+
+export async function productRestoreController(
+  req: Request<IdParamSchemaType, unknown, RestoreProductSchemaType>,
+  res: Response,
+) {
+  const product = await productRestoreService(req.params.id, req.body);
+
+  req.log.info(
+    { productId: product.id, adminId: req.user?.id },
+    "Product restored",
+  );
+
+  res.status(200).json({ success: true, data: product });
 }
