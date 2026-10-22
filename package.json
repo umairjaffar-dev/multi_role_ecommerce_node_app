@@ -14,7 +14,8 @@
     "admin:promote": "tsx src/scripts/promoteAdmin.ts",
     "format": "prettier --write src drizzle.config.ts tsconfig.json",
     "check": "tsc --noEmit && prettier --check src",
-    "storage:check": "tsx src/scripts/checkStorage.ts"
+    "storage:check": "tsx src/scripts/checkStorage.ts",
+    "db:seed": "tsx src/scripts/seedDatabase.ts"
   },
   "keywords": [],
   "author": "",
