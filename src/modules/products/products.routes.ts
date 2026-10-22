@@ -5,6 +5,7 @@ import {
   CreateProductSchema,
   ListProductsQuerySchema,
   ProductSlugParamSchema,
+  RestoreProductSchema,
   UpdateProductSchema,
 } from "./products.validation.js";
 import {
@@ -14,6 +15,7 @@ import {
   productGetBySlugPublicController,
   productListAdminController,
   productListPublicController,
+  productRestoreController,
   productUpdateController,
 } from "./products.controller.js";
 import { methodNotAllowed } from "../../middlewares/methodNotAllowed.js";
@@ -22,7 +24,7 @@ import { adminProductImagesRouter } from "../productImages/productImages.routes.
 
 export const productsRouter = Router();
 
-// get all products publically.
+// Public: mounted at /api/v1/products, no login needed (guests can browse)
 productsRouter
   .route("/")
   .get(
@@ -62,3 +64,12 @@ adminProductsRouter
   )
   .delete(validate({ params: IdParamSchema }), productDeleteController)
   .all(methodNotAllowed(["GET", "PATCH", "DELETE"]));
+
+// POST, not PATCH: restoring is an action on the product, not an edit of its fields
+adminProductsRouter
+  .route("/:id/restore")
+  .post(
+    validate({ params: IdParamSchema, body: RestoreProductSchema }),
+    productRestoreController,
+  )
+  .all(methodNotAllowed(["POST"]));
