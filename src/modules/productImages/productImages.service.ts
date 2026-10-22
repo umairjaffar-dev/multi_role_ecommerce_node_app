@@ -1,14 +1,12 @@
+import { randomUUID } from "node:crypto";
 import { and, asc, count, eq, inArray, isNull, max } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { productsTable } from "../../db/schema/products.schema.js";
+import { productImagesTable, productsTable } from "../../db/schema/index.js";
 import { logger } from "../../lib/logger.js";
-import { AppError } from "../../utils/AppError.js";
-import { productImagesTable } from "../../db/schema/productImages.schema.js";
-import { detectImageType } from "../../utils/imageType.js";
-import { randomUUID } from "node:crypto";
 import { storage } from "../../lib/storage/index.js";
-
-export const MAX_IMAGES_PER_PRODUCT = 8;
+import { AppError } from "../../utils/AppError.js";
+import { detectImageType } from "../../utils/imageType.js";
+import { MAX_IMAGES_PER_PRODUCT } from "./productImages.validation.js";
 
 // What the API returns for an image: never the raw storage key alone, always a usable URL
 export type ProductImageType = {
@@ -205,4 +203,93 @@ export async function productImageListService(
       sortOrder: row.sortOrder,
     })),
   );
+}
+
+function productImageNotFound(): AppError {
+  return new AppError(
+    404,
+    "Product image not found",
+    "PRODUCT_IMAGE_NOT_FOUND",
+  );
+}
+
+// Delete is the mirror of upload: row first, file second.
+// If removing the file fails, the image is already gone from the site; only an orphan file is left.
+export async function productImageDeleteService(
+  productId: string,
+  imageId: string,
+): Promise<void> {
+  const [deleted] = await db
+    .delete(productImagesTable)
+    // Matching the product too stops /products/A/images/<image of B> (IDOR)
+    .where(
+      and(
+        eq(productImagesTable.id, imageId),
+        eq(productImagesTable.productId, productId),
+      ),
+    )
+    .returning({ key: productImagesTable.key });
+
+  if (!deleted) throw productImageNotFound();
+
+  try {
+    await storage.delete(deleted.key);
+  } catch (err) {
+    productImagesLogger.error(
+      { err, key: deleted.key },
+      "Image row deleted but its file could not be removed (orphan file)",
+    );
+  }
+}
+
+// Sets the whole gallery order at once; imageIds[0] becomes the cover image
+export async function productImageReorderService(
+  productId: string,
+  imageIds: Array<string>,
+): Promise<Array<ProductGalleryImageType>> {
+  await db.transaction(async (tx) => {
+    // Same lock as upload: an upload cannot slip in between our check and our updates
+    const [product] = await tx
+      .select({ id: productsTable.id })
+      .from(productsTable)
+      .where(
+        and(eq(productsTable.id, productId), isNull(productsTable.deletedAt)),
+      )
+      .for("update");
+    if (!product) throw productNotFound();
+
+    const current = await tx
+      .select({ id: productImagesTable.id })
+      .from(productImagesTable)
+      .where(eq(productImagesTable.productId, productId));
+
+    // The list must be exactly this product's images: none missing, none foreign
+    const currentIds = new Set(current.map((row) => row.id));
+    const isSameSet =
+      imageIds.length === currentIds.size &&
+      imageIds.every((id) => currentIds.has(id));
+    if (!isSameSet) {
+      throw new AppError(
+        400,
+        "imageIds must list every image of this product exactly once",
+        "IMAGE_ORDER_MISMATCH",
+        { expectedCount: currentIds.size, receivedCount: imageIds.length },
+      );
+    }
+
+    // At most 8 small updates inside one transaction: either all change or none do
+    for (const [index, imageId] of imageIds.entries()) {
+      await tx
+        .update(productImagesTable)
+        .set({ sortOrder: index })
+        .where(
+          and(
+            eq(productImagesTable.id, imageId),
+            eq(productImagesTable.productId, productId),
+          ),
+        );
+    }
+  });
+
+  return productImageListService(productId);
 }
