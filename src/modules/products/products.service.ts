@@ -41,12 +41,14 @@ import {
 } from "../../utils/pagination.js";
 import { escapeLikePattern } from "../../utils/sql.js";
 import { encodeCursor } from "../../utils/cursor.js";
+import { productImageCoverUrlsService } from "../productImages/productImages.service.js";
 
 const SLUG_UNIQUE_CONSTRAINT = "products_slug_unique";
 const CATEGORY_FK_CONSTRAINT = "products_category_id_categories_id_fk";
 
 export type AdminProductListItemType = ProductType & {
   category: Pick<CategoryType, "id" | "name" | "slug">;
+  imageUrl: string | null; // cover image
 };
 
 const adminProductListColumns = {
@@ -74,8 +76,12 @@ export type PublicProductListMetaType = {
   nextCursor: string | null;
 };
 
+export type PublicProductListItemType = PublicProductType & {
+  imageUrl: string | null;
+};
+
 export type PublicProductListResultType = {
-  items: Array<PublicProductType>;
+  items: Array<PublicProductListItemType>;
   meta: PublicProductListMetaType;
 };
 
@@ -195,7 +201,7 @@ export async function productListAdminService(
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const [items, [totalRow]] = await Promise.all([
+  const [rows, [totalRow]] = await Promise.all([
     db
       .select(adminProductListColumns)
       .from(productsTable)
@@ -212,6 +218,15 @@ export async function productListAdminService(
     // Filters only touch product columns, so the count does not need the join
     db.select({ total: count() }).from(productsTable).where(where),
   ]);
+
+  const coverUrls = await productImageCoverUrlsService(
+    rows.map((row) => row.id),
+  );
+
+  const items = rows.map((row) => ({
+    ...row,
+    imageUrl: coverUrls.get(row.id) ?? null,
+  }));
 
   return { items, meta: buildPaginationMeta(query, totalRow?.total ?? 0) };
 }
@@ -347,10 +362,16 @@ export async function productListPublicService(
   const nextCursor =
     hasNextPage && lastRow ? buildNextCursor(query.sort, lastRow) : null;
 
+  // One extra query for the whole page's cover images (not one per product)
+  const coverUrls = await productImageCoverUrlsService(
+    pageRows.map((row) => row.id),
+  );
+
   return {
-    items: pageRows.map(({ createdAtCursor: _createdAtCursor, ...row }) =>
-      toPublicProduct(row),
-    ),
+    items: pageRows.map(({ createdAtCursor: _createdAtCursor, ...row }) => ({
+      ...toPublicProduct(row),
+      imageUrl: coverUrls.get(row.id) ?? null,
+    })),
     meta: { limit: query.limit, hasNextPage, nextCursor },
   };
 }

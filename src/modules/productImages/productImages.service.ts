@@ -1,4 +1,4 @@
-import { and, count, eq, isNull, max } from "drizzle-orm";
+import { and, asc, count, eq, inArray, isNull, max } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { productsTable } from "../../db/schema/products.schema.js";
 import { logger } from "../../lib/logger.js";
@@ -142,4 +142,32 @@ export async function productImageUploadService(
     });
     throw error;
   }
+}
+
+// Cover image URL (lowest sortOrder) for many products at once: one query for the whole page,
+// never one query per product (the N+1 problem). Products without images are simply absent.
+export async function productImageCoverUrlsService(
+  productIds: Array<string>,
+): Promise<Map<string, string>> {
+  if (productIds.length === 0) return new Map();
+
+  // DISTINCT ON keeps only the first row per product_id, in ORDER BY order,
+  // so each product gets exactly its lowest-sortOrder image
+  const covers = await db
+    .selectDistinctOn([productImagesTable.productId], {
+      productId: productImagesTable.productId,
+      key: productImagesTable.key,
+    })
+    .from(productImagesTable)
+    .where(inArray(productImagesTable.productId, productIds))
+    .orderBy(productImagesTable.productId, asc(productImagesTable.sortOrder));
+
+  // Signing a URL is local crypto (no network call), so doing it per image is cheap
+  const entries = await Promise.all(
+    covers.map(
+      async (cover) =>
+        [cover.productId, await storage.getUrl(cover.key)] as const,
+    ),
+  );
+  return new Map(entries);
 }

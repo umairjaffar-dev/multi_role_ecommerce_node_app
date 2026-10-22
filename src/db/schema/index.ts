@@ -2,7 +2,7 @@
 // Drizzle Kit reads this file to generate migrations.
 export * from "./users.schema.js";
 export * from "./refreshTokens.schema.js";
-export * from "./relations.js";
 export * from "./categories.schema.js";
 export * from "./products.schema.js";
 export * from "./productImages.schema.js";
+export * from "./relations.js";

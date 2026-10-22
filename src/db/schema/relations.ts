@@ -19,11 +19,11 @@ export const refreshTokensRelations = relations(
 );
 
 // relation between product_images and products table.
-export const productsRelation = relations(productsTable, ({ many }) => ({
+export const productsRelations = relations(productsTable, ({ many }) => ({
   images: many(productImagesTable),
 }));
 
-export const productImagesRelation = relations(
+export const productImagesRelations = relations(
   productImagesTable,
   ({ one }) => ({
     product: one(productsTable, {
