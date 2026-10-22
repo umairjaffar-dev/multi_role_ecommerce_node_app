@@ -160,7 +160,11 @@ export async function productImageCoverUrlsService(
     })
     .from(productImagesTable)
     .where(inArray(productImagesTable.productId, productIds))
-    .orderBy(productImagesTable.productId, asc(productImagesTable.sortOrder));
+    .orderBy(
+      productImagesTable.productId,
+      asc(productImagesTable.sortOrder),
+      asc(productImagesTable.id),
+    );
 
   // Signing a URL is local crypto (no network call), so doing it per image is cheap
   const entries = await Promise.all(
@@ -170,4 +174,35 @@ export async function productImageCoverUrlsService(
     ),
   );
   return new Map(entries);
+}
+
+// One product's gallery, in display order (index 0 = cover)
+export type ProductGalleryImageType = {
+  id: string;
+  url: string;
+  sortOrder: number;
+};
+
+// A single product page needs only one query here, so there is no N+1 risk
+export async function productImageListService(
+  productId: string,
+): Promise<Array<ProductGalleryImageType>> {
+  const rows = await db
+    .select({
+      id: productImagesTable.id,
+      key: productImagesTable.key,
+      sortOrder: productImagesTable.sortOrder,
+    })
+    .from(productImagesTable)
+    .where(eq(productImagesTable.productId, productId))
+    // id breaks ties, so the order is stable even if two images share a sortOrder
+    .orderBy(asc(productImagesTable.sortOrder), asc(productImagesTable.id));
+
+  return Promise.all(
+    rows.map(async (row) => ({
+      id: row.id,
+      url: await storage.getUrl(row.key),
+      sortOrder: row.sortOrder,
+    })),
+  );
 }

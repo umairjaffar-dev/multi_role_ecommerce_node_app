@@ -41,7 +41,11 @@ import {
 } from "../../utils/pagination.js";
 import { escapeLikePattern } from "../../utils/sql.js";
 import { encodeCursor } from "../../utils/cursor.js";
-import { productImageCoverUrlsService } from "../productImages/productImages.service.js";
+import {
+  productImageCoverUrlsService,
+  productImageListService,
+  type ProductGalleryImageType,
+} from "../productImages/productImages.service.js";
 
 const SLUG_UNIQUE_CONSTRAINT = "products_slug_unique";
 const CATEGORY_FK_CONSTRAINT = "products_category_id_categories_id_fk";
@@ -83,6 +87,16 @@ export type PublicProductListItemType = PublicProductType & {
 export type PublicProductListResultType = {
   items: Array<PublicProductListItemType>;
   meta: PublicProductListMetaType;
+};
+
+// Admin edit page: the full row plus the gallery with sortOrder (needed for reordering)
+export type AdminProductDetailType = ProductType & {
+  images: Array<ProductGalleryImageType>;
+};
+
+// Customer product page: the public shape plus the gallery (no internal sortOrder)
+export type PublicProductDetailType = PublicProductType & {
+  images: Array<Pick<ProductGalleryImageType, "id" | "url">>;
 };
 
 // Every sort ends with id, so two products with the same price/date still have a fixed order
@@ -231,7 +245,9 @@ export async function productListAdminService(
   return { items, meta: buildPaginationMeta(query, totalRow?.total ?? 0) };
 }
 
-export async function productGetByIdService(id: string): Promise<ProductType> {
+export async function productGetByIdService(
+  id: string,
+): Promise<AdminProductDetailType> {
   const [product] = await db
     .select()
     .from(productsTable)
@@ -240,7 +256,9 @@ export async function productGetByIdService(id: string): Promise<ProductType> {
 
   if (!product) throw productNotFound();
 
-  return product;
+  const images = await productImageListService(product.id);
+
+  return { ...product, images };
 }
 
 // Update product.
@@ -378,7 +396,7 @@ export async function productListPublicService(
 
 export async function productGetBySlugPublicService(
   slug: string,
-): Promise<PublicProductType> {
+): Promise<PublicProductDetailType> {
   const [row] = await db
     .select(publicProductColumns)
     .from(productsTable)
@@ -392,5 +410,11 @@ export async function productGetBySlugPublicService(
   // Hidden, deleted and missing all look the same to a customer: 404, never 403
   if (!row) throw productNotFound();
 
-  return toPublicProduct(row);
+  const images = await productImageListService(row.id);
+
+  return {
+    ...toPublicProduct(row),
+    // Customers get id + url only; sortOrder is an admin concern
+    images: images.map(({ id, url }) => ({ id, url })),
+  };
 }
