@@ -5,3 +5,6 @@ dist
 uploads
 *.log
 repomix-output.xml
+# Surveillance lab: sample videos and recordings are large binaries
+surveillance/media/*
+!surveillance/media/.gitkeep

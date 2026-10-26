@@ -1,0 +1,31 @@
+# MediaMTX configuration for the surveillance learning lab.
+# Any setting not listed here falls back to MediaMTX defaults.
+
+logLevel: info
+
+# RTSP: cameras publish here, AI service and VLC read from here.
+rtsp: yes
+rtspAddress: :8554
+# TCP only: inside Docker only TCP 8554 is mapped, so UDP RTP would silently fail.
+rtspTransports: [tcp]
+
+# HLS: browser playback (a few seconds of latency).
+hls: yes
+hlsAddress: :8888
+
+# WebRTC: low-latency browser playback, used later in the frontend.
+webrtc: yes
+webrtcAddress: :8889
+
+# Protocols this lab does not use. Disabled to reduce attack surface and noise.
+rtmp: no
+srt: no
+moq: no
+
+paths:
+  # Fake camera. "publisher" means the stream is pushed to us (FFmpeg),
+  # not pulled from a real camera.
+  cam1:
+    source: publisher
+  cam2:
+    source: publisher
