@@ -5,4 +5,5 @@ export * from "./refreshTokens.schema.js";
 export * from "./categories.schema.js";
 export * from "./products.schema.js";
 export * from "./productImages.schema.js";
+export * from "./cameras.schema.js";
 export * from "./relations.js";

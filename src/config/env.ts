@@ -70,6 +70,21 @@ const EnvSchema = z.object({
   S3_PUBLIC_BASE_URL: z
     .url("S3_PUBLIC_BASE_URL must be a valid URL")
     .optional(),
+
+  // ── Data encryption ──
+  // AES-256 needs exactly 32 bytes; checked at startup so a bad key fails fast
+  DATA_ENCRYPTION_KEY: z
+    .string({ error: "DATA_ENCRYPTION_KEY is required" })
+    .refine(
+      (value) => Buffer.from(value, "base64").length === 32,
+      "DATA_ENCRYPTION_KEY must be 32 random bytes encoded as base64",
+    ),
+
+  // ── Surveillance (MediaMTX) ──
+  // Base URL browsers use for HLS playback: <base>/<streamPath>/index.m3u8
+  MEDIAMTX_HLS_BASE_URL: z
+    .url("MEDIAMTX_HLS_BASE_URL must be a valid URL")
+    .default("http://localhost:8888"),
 });
 
 const parsed = EnvSchema.safeParse(rawEnv);
@@ -107,6 +122,11 @@ export const env = {
 
   security: {
     bcryptSaltRounds: e.BCRYPT_SALT_ROUNDS,
+    dataEncryptionKey: e.DATA_ENCRYPTION_KEY,
+  },
+
+  surveillance: {
+    hlsBaseUrl: e.MEDIAMTX_HLS_BASE_URL,
   },
 
   storage: {
