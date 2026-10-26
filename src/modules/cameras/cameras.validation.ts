@@ -38,7 +38,7 @@ const StreamPathSchema = z
 
 export const CreateCameraSchema = z.object({
   name: NameSchema,
-  location: LocationSchema,
+  location: LocationSchema.optional(),
   rtspUrl: RtspUrlSchema,
   streamPath: StreamPathSchema,
   isActive: z.boolean().optional(),
