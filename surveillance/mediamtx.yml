@@ -14,7 +14,7 @@ hls: yes
 hlsAddress: :8888
 
 # WebRTC: low-latency browser playback, used later in the frontend.
-webrtc: yes
+webrtc: no
 webrtcAddress: :8889
 
 # Protocols this lab does not use. Disabled to reduce attack surface and noise.

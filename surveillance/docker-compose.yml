@@ -16,7 +16,7 @@ services:
       - ./mediamtx.yml:/mediamtx.yml:ro
 
   fake-cam1:
-    image: linuxserver/ffmpeg:latest
+    image: linuxserver/ffmpeg:9.0.2
     container_name: fake-cam1
     restart: unless-stopped
     depends_on:
@@ -31,7 +31,7 @@ services:
       -an -f rtsp -rtsp_transport tcp rtsp://mediamtx:8554/cam1
 
   fake-cam2:
-    image: linuxserver/ffmpeg:latest
+    image: linuxserver/ffmpeg:9.0.2
     container_name: fake-cam2
     restart: unless-stopped
     depends_on:
