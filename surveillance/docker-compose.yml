@@ -1,0 +1,45 @@
+# Surveillance learning lab: one media server and two fake IP cameras.
+# Run from the surveillance/ folder: docker compose up -d
+name: surveillance-lab
+
+services:
+  mediamtx:
+    # Pinned version: "latest" can change behaviour without warning.
+    image: bluenviron/mediamtx:1.21.2
+    container_name: mediamtx
+    restart: unless-stopped
+    ports:
+      - "8554:8554" # RTSP (cameras, AI service, VLC)
+      - "8888:8888" # HLS (browser playback)
+    volumes:
+      # :ro = read-only, the container cannot modify our config file.
+      - ./mediamtx.yml:/mediamtx.yml:ro
+
+  fake-cam1:
+    image: linuxserver/ffmpeg:latest
+    container_name: fake-cam1
+    restart: unless-stopped
+    depends_on:
+      - mediamtx
+    volumes:
+      - ./media:/media:ro
+    # "mediamtx" is the service name; Docker's internal DNS resolves it.
+    command: >
+      -re -stream_loop -1 -i /media/sample.mp4
+      -vf scale=1280:720 -r 15
+      -c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -g 30
+      -an -f rtsp -rtsp_transport tcp rtsp://mediamtx:8554/cam1
+
+  fake-cam2:
+    image: linuxserver/ffmpeg:latest
+    container_name: fake-cam2
+    restart: unless-stopped
+    depends_on:
+      - mediamtx
+    volumes:
+      - ./media:/media:ro
+    command: >
+      -re -stream_loop -1 -i /media/trafic.mp4
+      -vf scale=1280:720 -r 15
+      -c:v libx264 -preset veryfast -tune zerolatency -pix_fmt yuv420p -g 30
+      -an -f rtsp -rtsp_transport tcp rtsp://mediamtx:8554/cam2
