@@ -15,7 +15,11 @@
     "format": "prettier --write src drizzle.config.ts tsconfig.json",
     "check": "tsc --noEmit && prettier --check src",
     "storage:check": "tsx src/scripts/checkStorage.ts",
-    "db:seed": "tsx src/scripts/seedDatabase.ts"
+    "db:seed": "tsx src/scripts/seedDatabase.ts",
+    "services:up": "docker compose up -d && docker compose -f surveillance/docker-compose.yml up -d",
+    "services:down": "docker compose -f surveillance/docker-compose.yml down && docker compose down",
+    "services:stop": "docker compose -f surveillance/docker-compose.yml stop && docker compose stop",
+    "services:ps": "docker compose ps && docker compose -f surveillance/docker-compose.yml ps"
   },
   "keywords": [],
   "author": "",
