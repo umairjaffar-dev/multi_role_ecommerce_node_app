@@ -85,6 +85,17 @@ const EnvSchema = z.object({
   MEDIAMTX_HLS_BASE_URL: z
     .url("MEDIAMTX_HLS_BASE_URL must be a valid URL")
     .default("http://localhost:8888"),
+
+  // Control API used by the backend to create, update and remove camera paths
+  MEDIAMTX_API_URL: z
+    .url("MEDIAMTX_API_URL must be a valid URL")
+    .default("http://localhost:9997"),
+  MEDIAMTX_API_USER: z.string().min(1).default("backend"),
+  MEDIAMTX_API_PASSWORD: z
+    .string({
+      error: "MEDIAMTX_API_PASSWORD is required",
+    })
+    .min(16, "MEDIAMTX_API_PASSWORD must be at least 16 characters"),
 });
 
 const parsed = EnvSchema.safeParse(rawEnv);
@@ -127,6 +138,9 @@ export const env = {
 
   surveillance: {
     hlsBaseUrl: e.MEDIAMTX_HLS_BASE_URL,
+    apiUrl: e.MEDIAMTX_API_URL,
+    apiUser: e.MEDIAMTX_API_USER,
+    apiPassword: e.MEDIAMTX_API_PASSWORD,
   },
 
   storage: {
