@@ -22,10 +22,33 @@ rtmp: no
 srt: no
 moq: no
 
+#  Control PAI: the Node backend creates, updates and remove camera paths through it.
+api: yes
+apiAddress: :9997
+
+# Who may do what. Least privilege: viewers and cameras never get "api",
+# and the backend service user gets only "api".
+authInternalUsers:
+   # Cameras publish, viewers read. Open for now; locked down in the security step.
+   - user: any
+     pass:
+     ips: []
+     permissions:
+       - action: publish
+       - action: read
+       - action: playback
+   # Service user for the Node backend. The real password comes from the
+   # MTX_AUTHINTERNALUSERS_1_PASS environment variable (see docker-compose.yml).
+   - user: backend
+     pass: set-via-env
+     ips: []
+     permissions:
+       - action: api
+
 paths:
-  # Fake camera. "publisher" means the stream is pushed to us (FFmpeg),
-  # not pulled from a real camera.
-  cam1:
+  # Simulated camera devices: FFmpeg pushes here, like a real camera's own RTSP stream.
+  # Viewer-facing paths (cam1, cam2, ...) are created by the backend through the API.
+  fake1:
     source: publisher
-  cam2:
+  fake2:
     source: publisher
