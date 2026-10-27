@@ -22,7 +22,7 @@ rtmp: no
 srt: no
 moq: no
 
-#  Control PAI: the Node backend creates, updates and remove camera paths through it.
+# Control PAI: the Node backend creates, updates and remove camera paths through it.
 api: yes
 apiAddress: :9997
 
@@ -46,9 +46,9 @@ authInternalUsers:
        - action: api
 
 paths:
-  # Simulated camera devices: FFmpeg pushes here, like a real camera's own RTSP stream.
-  # Viewer-facing paths (cam1, cam2, ...) are created by the backend through the API.
-  fake1:
-    source: publisher
-  fake2:
-    source: publisher
+   # Simulated camera devices: FFmpeg pushes here, like a real camera's own RTSP stream.
+   # Viewer-facing paths (cam1, cam2, ...) are created by the backend through the API.
+   fake1:
+     source: publisher
+   fake2:
+     source: publisher
