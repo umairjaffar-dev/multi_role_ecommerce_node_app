@@ -3,6 +3,7 @@ import { env } from "./config/env.js";
 import { logger } from "./lib/logger.js";
 import { checkDatabaseConnection, closeDatabase } from "./db/index.js";
 import { storage } from "./lib/storage/index.js";
+import { startCameraPathsReconcileLoop, stopCameraPathsReconcileLoop } from "./modules/cameras/cameras.reconcile.js";
 
 async function bootstrap() {
   // Fail fast: do not accept traffic if the database is unreachable
@@ -29,6 +30,10 @@ async function bootstrap() {
     logger.info(`Server is running at http://localhost:${env.port}`);
   });
 
+  // MediaMTX is optional for the shop, so it is not a fail-fast check like the DB:
+  // the loop warns while MediaMTX is down and repairs camera paths once it is back
+  startCameraPathsReconcileLoop();
+
   let isShuttingDown = false;
 
   // Graceful shutdown: Stop accepting new requests, finished in-flight ones, then exit
@@ -36,6 +41,7 @@ async function bootstrap() {
     if (isShuttingDown) return;
     isShuttingDown = true;
     logger.info(`${signal} received, shutting down gracefully`);
+    stopCameraPathsReconcileLoop();
 
     server.close(async () => {
       logger.info("HTTP server closed");
