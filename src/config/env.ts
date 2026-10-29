@@ -96,6 +96,15 @@ const EnvSchema = z.object({
       error: "MEDIAMTX_API_PASSWORD is required",
     })
     .min(16, "MEDIAMTX_API_PASSWORD must be at least 16 characters"),
+  MEDIAMTX_RESERVED_PATHS: z
+    .string()
+    .default("fake1,fake2")
+    .transform((value) =>
+      value
+        .split(",")
+        .map((name) => name.trim())
+        .filter(Boolean),
+    ),
 });
 
 const parsed = EnvSchema.safeParse(rawEnv);
@@ -141,6 +150,7 @@ export const env = {
     apiUrl: e.MEDIAMTX_API_URL,
     apiUser: e.MEDIAMTX_API_USER,
     apiPassword: e.MEDIAMTX_API_PASSWORD,
+    reservedPaths: e.MEDIAMTX_RESERVED_PATHS,
   },
 
   storage: {
