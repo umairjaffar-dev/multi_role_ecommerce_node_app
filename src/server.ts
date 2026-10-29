@@ -3,7 +3,10 @@ import { env } from "./config/env.js";
 import { logger } from "./lib/logger.js";
 import { checkDatabaseConnection, closeDatabase } from "./db/index.js";
 import { storage } from "./lib/storage/index.js";
-import { startCameraPathsReconcileLoop, stopCameraPathsReconcileLoop } from "./modules/cameras/cameras.reconcile.js";
+import {
+  startCameraPathsReconcileLoop,
+  stopCameraPathsReconcileLoop,
+} from "./modules/cameras/cameras.reconcile.js";
 
 async function bootstrap() {
   // Fail fast: do not accept traffic if the database is unreachable
