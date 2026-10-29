@@ -1,4 +1,4 @@
-import { and, count, desc, eq, ilike, or, type SQL } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or, sql, type SQL } from "drizzle-orm";
 import { env } from "../../config/env.js";
 import {
   camerasTable,
@@ -18,7 +18,7 @@ import type {
   UpdateCameraSchemaType,
 } from "./cameras.validation.js";
 import { escapeLikePattern } from "../../utils/sql.js";
-import { db } from "../../db/index.js";
+import { db, type TransactionType } from "../../db/index.js";
 import { isUniqueViolation } from "../../utils/dbErrors.js";
 import { logger } from "../../lib/logger.js";
 import {
@@ -62,8 +62,14 @@ function assertStreamPathAllowed(streamPath: string): void {
 // Postgres is the source of truth. Every write runs inside a transaction and calls
 // MediaMTX before committing: if MediaMTX refuses, the database change is rolled back.
 
+export async function lockCameraPathSync(tx: TransactionType): Promise<void> {
+  await tx.execute(
+    sql`SELECT pg_advisory_xact_lock(hashtext('cameras:mediamtx-sync'))`,
+  );
+}
+
 // How MediaMTX should pull a camera's video
-function buildPathConfig(rtspUrl: string): MediaMtxPathConfigType {
+export function buildPathConfig(rtspUrl: string): MediaMtxPathConfigType {
   return {
     source: rtspUrl,
     // Connect to the camera only while someone watches (saves camera and network load)
@@ -164,6 +170,8 @@ export async function cameraCreateService(
 
   try {
     const camera = await db.transaction(async (tx) => {
+      await lockCameraPathSync(tx);
+
       const [created] = await tx
         .insert(camerasTable)
         .values({
@@ -214,6 +222,8 @@ export async function cameraUpdateService(
 
   try {
     const camera = await db.transaction(async (tx) => {
+      if (touchesStream) await lockCameraPathSync(tx);
+
       // Lock the row so two concurrent updates cannot sync MediaMTX in the wrong order
       const [current] = await tx
         .select()
@@ -277,6 +287,7 @@ export async function cameraUpdateService(
 // DELETE /admin/cameras/:id
 export async function cameraDeleteService(id: string): Promise<void> {
   await db.transaction(async (tx) => {
+    await lockCameraPathSync(tx);
     const [deleted] = await tx
       .delete(camerasTable)
       .where(eq(camerasTable.id, id))

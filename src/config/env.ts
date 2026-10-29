@@ -105,6 +105,12 @@ const EnvSchema = z.object({
         .map((name) => name.trim())
         .filter(Boolean),
     ),
+  MEDIAMTX_RECONCILE_INTERVAL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(3600)
+    .default(30),
 });
 
 const parsed = EnvSchema.safeParse(rawEnv);
@@ -151,6 +157,7 @@ export const env = {
     apiUser: e.MEDIAMTX_API_USER,
     apiPassword: e.MEDIAMTX_API_PASSWORD,
     reservedPaths: e.MEDIAMTX_RESERVED_PATHS,
+    reconcileIntervalSeconds: e.MEDIAMTX_RECONCILE_INTERVAL_SECONDS,
   },
 
   storage: {
