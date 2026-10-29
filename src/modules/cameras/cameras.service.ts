@@ -24,11 +24,26 @@ import { logger } from "../../lib/logger.js";
 import {
   mediamtxDeletePath,
   MediaMtxError,
+  mediamtxGetPathStatus,
   mediamtxUpsertPath,
   type MediaMtxPathConfigType,
+  type MediaMtxPathStatusType,
 } from "../../lib/mediamtxClient.js";
 
 const STREAM_PATH_UNIQUE_CONSTRAINT = "cameras_stream_path_unique";
+
+export type CameraStreamStateType =
+  "live" | "standby" | "disabled" | "not_synced" | "unknown";
+
+export type CameraStatusType = {
+  cameraId: string;
+  streamPath: string;
+  state: CameraStreamStateType;
+  viewers: number;
+  liveSince: string | null;
+  tracks: Array<string>;
+  checkedAt: string;
+};
 
 // What the API returns: the encrypted column is replaced by a masked URL and a playback URL
 export type PublicCameraType = Omit<CameraType, "rtspUrlEncrypted"> & {
@@ -298,4 +313,52 @@ export async function cameraDeleteService(id: string): Promise<void> {
     // Deleting a path that is already gone is fine (inactive cameras have none)
     await withMediaServer(() => mediamtxDeletePath(deleted.streamPath));
   });
+}
+
+// GET /admin/cameras/:id/status
+// Always answers 200 for an existing camera: "MediaMTX is down" is a status, not an API error
+export async function cameraGetStatusService(
+  id: string,
+): Promise<CameraStatusType> {
+  const [camera] = await db
+    .select({
+      id: camerasTable.id,
+      streamPath: camerasTable.streamPath,
+      isActive: camerasTable.isActive,
+    })
+    .from(camerasTable)
+    .where(eq(camerasTable.id, id))
+    .limit(1);
+
+  if (!camera) throw cameraNotFound();
+
+  const base = {
+    cameraId: camera.id,
+    streamPath: camera.streamPath,
+    checkedAt: new Date().toISOString(),
+  };
+  const noVideo = { viewers: 0, liveSince: null, tracks: [] };
+
+  if (!camera.isActive) return { ...base, ...noVideo, state: "disabled" };
+
+  let path: MediaMtxPathStatusType | null;
+  try {
+    path = await mediamtxGetPathStatus(camera.streamPath);
+  } catch (error) {
+    if (error instanceof MediaMtxError) {
+      logger.warn({ err: error }, "Camera status: MediaMTX unreachable");
+      return { ...base, ...noVideo, state: "unknown" };
+    }
+    throw error;
+  }
+
+  if (!path) return { ...base, ...noVideo, state: "not_synced" };
+
+  return {
+    ...base,
+    state: path.ready ? "live" : "standby",
+    viewers: path.readerCount,
+    liveSince: path.readySince,
+    tracks: path.tracks,
+  };
 }
