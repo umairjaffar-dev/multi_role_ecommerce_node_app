@@ -12,8 +12,13 @@ export type MediaMtxPathConfigType = {
 };
 
 export type MediaMtxPathStatusType = {
+  // true = video is flowing from the source right now
   ready: boolean;
+  // When the video started flowing (ISO string), null while not ready
+  readySince: string | null;
   readerCount: number;
+  // Codecs of the incoming video, e.g. ["H264"]
+  tracks: Array<string>;
 };
 
 export class MediaMtxError extends Error {
@@ -112,9 +117,16 @@ export async function mediamtxGetPathStatus(
 
   const json = (await response.json()) as {
     ready: boolean;
+    readyTime: string | null;
     readers: Array<unknown>;
+    tracks: Array<string>;
   };
-  return { ready: json.ready, readerCount: json.readers.length };
+  return {
+    ready: json.ready,
+    readySince: json.readyTime,
+    readerCount: json.readers.length,
+    tracks: json.tracks,
+  };
 }
 
 // Names of every configured path, following MediaMTX's pagination (page is 0-based)

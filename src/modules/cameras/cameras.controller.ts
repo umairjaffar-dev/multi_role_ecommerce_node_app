@@ -10,6 +10,7 @@ import {
   cameraCreateService,
   cameraDeleteService,
   cameraGetByIdService,
+  cameraGetStatusService,
   cameraListService,
   cameraUpdateService,
 } from "./cameras.service.js";
@@ -89,4 +90,16 @@ export async function cameraDeleteController(
   );
 
   res.status(204).send();
+}
+
+// GET /admin/cameras/:id/status
+export async function cameraGetStatusController(
+  req: Request<IdParamSchemaType>,
+  res: Response,
+): Promise<void> {
+  const status = await cameraGetStatusService(req.params.id);
+
+  // Live data: never let a browser or proxy serve an old answer
+  res.setHeader("Cache-Control", "no-store");
+  res.status(200).json({ success: true, data: status });
 }

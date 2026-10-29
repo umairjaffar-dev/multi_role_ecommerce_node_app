@@ -13,6 +13,7 @@ import {
   cameraCreateController,
   cameraDeleteController,
   cameraGetByIdController,
+  cameraGetStatusController,
   cameraListController,
   cameraUpdateController,
 } from "./cameras.controller.js";
@@ -37,3 +38,9 @@ adminCamerasRouter
   )
   .delete(validate({ params: IdParamSchema }), cameraDeleteController)
   .all(methodNotAllowed(["GET", "PATCH", "DELETE"]));
+
+// Live stream state of one camera, read from MediaMTX.
+adminCamerasRouter
+  .route("/:id/status")
+  .get(validate({ params: IdParamSchema }), cameraGetStatusController)
+  .all(methodNotAllowed(["GET"]));
