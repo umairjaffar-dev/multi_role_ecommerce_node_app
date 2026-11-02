@@ -52,3 +52,5 @@ paths:
      source: publisher
    fake2:
      source: publisher
+   fake3:
+     source: publisher
