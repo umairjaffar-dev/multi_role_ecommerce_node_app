@@ -1,0 +1,5 @@
+After restricted-area monitoring, the natural progression is:
+- Lesson 5 — Object Tracking: Understand ByteTrack, tracking IDs, and counting unique crossings.
+- Lesson 6 — Polygon Restricted Zones: Monitor irregular areas instead of a single horizontal boundary, using cv2.pointPolygonTest().
+- Lesson 7 — Event Recording: Save alert screenshots, timestamps, and short video clips.
+- Lesson 8 — Building a Surveillance Backend: Send detection events to a Node.js or Python API and display them in a React dashboard.
