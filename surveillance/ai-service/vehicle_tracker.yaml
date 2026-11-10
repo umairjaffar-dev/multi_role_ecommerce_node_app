@@ -1,0 +1,7 @@
+tracker_type: bytetrack
+track_high_thresh: 0.25
+track_low_thresh: 0.1
+new_track_thresh: 0.5   # default 0.25 -> a weak 0.3 flicker can no longer start a NEW id
+track_buffer: 60        # default 30 -> remember a lost car longer before giving up its id
+match_thresh: 0.8
+fuse_score: True

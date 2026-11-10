@@ -1,215 +1,202 @@
+"""
+Count vehicles entering two zones (incoming / outgoing) in a video file or an RTSP camera.
+
+Flow per frame: read -> resize to the zones' size -> YOLO + ByteTrack -> point-in-polygon
+per tracked vehicle -> count each vehicle once per zone -> draw -> show.
+"""
+
+import os
+
+# OpenCV reads this when it opens a stream; our MediaMTX accepts RTSP over TCP only.
+os.environ.setdefault("OPENCV_FFMPEG_CAPTURE_OPTIONS", "rtsp_transport;tcp")
+
+import time
+
 import cv2
 import numpy as np
 from ultralytics import YOLO
 
-# YOLO(You Only Look Once) is an object detection model.
-# It analyise an image and predict:
-# - What the object is,
-# - where object is present
-# - how confidence the model is about each detection.
-model = YOLO(
-    "yolo11n.pt"
-)  # - Load the YOLO model: YOLO is the model class provided by ultralytics
-# - yolo11n is the pretrained YOLO11 nano model
-# - model is the object used to perform detections.
+# ── Settings ──────────────────────────────────────────────────────────────────
+SOURCE = "videos/city.mp4"  # or "rtsp://localhost:8554/cam1"
+MODEL_PATH = "yolo11n.pt"
+SHOW_WINDOW = True
 
-VIDEO_PATH = "videos/city.mp4"
-restricted_zones = {
-    "Zone A (Incoming)": np.array(
-        [[330, 160], [795, 160], [900, 500], [200, 500]], dtype=np.int32
-    ),
-    "Zone B (Outgoing)": np.array(
-        [[800, 160], [1000, 160], [1200, 500], [905, 500]], dtype=np.int32
-    ),
+# The zone coordinates below are for this frame size (width, height). 16:9 like the
+# source, so the picture is not stretched.
+FRAME_SIZE = (1280, 720)
+
+# COCO class ids: 2 car, 3 motorcycle, 5 bus, 7 truck. Vans and pickups are often "truck".
+VEHICLE_CLASSES = [2, 3, 5, 7]
+CONFIDENCE = 0.25
+MIN_FRAMES_IN_ZONE = 5  # a car must stay inside this many frames in a row to be counted
+
+GREEN = (0, 255, 0)
+RED = (0, 0, 255)
+BLUE = (255, 0, 0)
+ORANGE = (0, 165, 255)
+WHITE = (255, 255, 255)
+DARK = (30, 30, 30)
+FONT = cv2.FONT_HERSHEY_SIMPLEX
+
+ZONES = {
+    "incoming": {
+        "label": "Zone A (Incoming)",
+        "title": "INCOMING",
+        # Your old points were for 1280x780; y is scaled by 720/780 (160 -> 148, 500 -> 462)
+        "polygon": np.array([[330, 148], [795, 148], [900, 462], [200, 462]], np.int32),
+        "color": GREEN,
+        "panel_x": 20,
+    },
+    "outgoing": {
+        "label": "Zone B (Outgoing)",
+        "title": "OUTGOING",
+        "polygon": np.array(
+            [[800, 148], [1000, 148], [1200, 462], [905, 462]], np.int32
+        ),
+        "color": ORANGE,
+        "panel_x": FRAME_SIZE[0] - 320,
+    },
 }
 
-cap = cv2.VideoCapture(VIDEO_PATH)
 
-if not cap.isOpened():
-    raise RuntimeError("Could not open video")
-
-# Total cars that have entered each zone
-total_incoming = 0
-total_outgoing = 0
-
-# Remember each car's previous zone membership
-previous_zones = {}
-
-while True:
-    ret, frame = cap.read()
-
-    if not ret:
-        break
-
-    frame = cv2.resize(frame, (1280, 780))
-    # Current cars inside each zone
-    cars_in_zones = {"Zone A (Incoming)": set(), "Zone B (Outgoing)": set()}
-    results = model.track(
-        frame,
-        persist=True,
-        classes=[2],
-        conf=0.2,
-        tracker="bytetrack.yaml",
-        verbose=False,
-    )
-    # YOLO return the detections for the frame, we can access it like above.
-    boxes = results[0].boxes
-
-    if boxes is not None and boxes.id is not None:
-        for box in boxes:
-            track_id = int(box.id.item())
-            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
-            confidence = float(box.conf[0])
-            class_id = int(box.cls[0])
-            center_x = (x1 + x2) // 2
-            bottom_y = (y1 + y2) // 2
-
-            car_point = (center_x, bottom_y)
-            current_zones = set()
-
-            # ### ----------------- Zones for tracking Incomming and Outgoing cars
-            for zone_name, polygon in restricted_zones.items():
-
-                cv2.polylines(
-                    frame, [polygon], isClosed=True, color=(0, 0, 255), thickness=2
-                )
-
-                cv2.putText(
-                    frame,
-                    zone_name,
-                    tuple(polygon[0]),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    (0, 255, 0),
-                    2,
-                )
-
-                result = cv2.pointPolygonTest(polygon, car_point, False)
-                if result >= 0:
-                    # print(f"Car ID {track_id} is inside {zone_name}")
-                    cars_in_zones[zone_name].add(track_id)
-                    # Current zones for this car
-                    current_zones.add(zone_name)
+def anchor_point(x1: int, y1: int, x2: int, y2: int) -> tuple[int, int]:
+    """Bottom-center of the box: where the vehicle touches the road. With a camera that
+    looks at the road at an angle, this decides the zone better than the box center."""
+    return (x1 + x2) // 2, y2
 
 
-            old_zones = previous_zones.get(track_id, set())
-            entered_zones = current_zones - old_zones
-
-            if "Zone A (Incoming)" in entered_zones:
-                total_incoming += 1
-                print(f"New incoming car! ID: {track_id}")
-
-            if "Zone B (Outgoing)" in entered_zones:
-                total_outgoing += 1
-                print(f"New outgoing car! ID: {track_id}")
-            previous_zones[track_id] = current_zones
+def draw_zones(frame: np.ndarray) -> None:
+    for zone in ZONES.values():
+        cv2.polylines(frame, [zone["polygon"]], isClosed=True, color=RED, thickness=2)
+        x, y = zone["polygon"][0]
+        cv2.putText(
+            frame, zone["label"], (int(x), int(y) - 8), FONT, 0.7, zone["color"], 2
+        )
 
 
-            # ### -------------- Rectangles for tracking cars
-            # print(x1, y1, x2, y2, confidence, class_id)
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+def draw_panel(
+    frame: np.ndarray, x: int, title: str, color, inside: int, total: int
+) -> None:
+    cv2.rectangle(frame, (x, 20), (x + 300, 155), DARK, -1)
+    cv2.putText(frame, title, (x + 20, 50), FONT, 0.8, color, 2)
+    cv2.putText(frame, f"Currently inside: {inside}", (x + 20, 90), FONT, 0.6, WHITE, 2)
+    cv2.putText(frame, f"Total entered: {total}", (x + 20, 125), FONT, 0.6, WHITE, 2)
 
-            label = f"ID: {track_id} | Conf: {confidence:.2f}"
-            cv2.putText(
+
+def main() -> None:
+    model = YOLO(MODEL_PATH)
+    cap = cv2.VideoCapture(SOURCE)
+    if not cap.isOpened():
+        print(f"Could not open {SOURCE}")
+        return
+
+    # Each vehicle is counted once per zone, even if its box jitters across the zone edge.
+    # (Only small ints; for a 24/7 camera you would reset these e.g. once a day.)
+    counted_ids: dict[str, set[int]] = {name: set() for name in ZONES}
+    # zone -> {track id: consecutive frames inside}
+    frames_inside: dict[str, dict[int, int]] = {name: {} for name in ZONES}
+
+    frame_number = 0
+    fps = 0.0
+    previous_time = time.perf_counter()
+
+    try:
+        while True:
+            ok, frame = cap.read()
+            if not ok:
+                print("No more frames")
+                break
+            frame_number += 1
+
+            # Resize only when needed: a camera that already sends 1280x720 skips the work.
+            if (frame.shape[1], frame.shape[0]) != FRAME_SIZE:
+                frame = cv2.resize(frame, FRAME_SIZE)
+
+            results = model.track(
                 frame,
-                label,
-                (x1, y1 - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                (0, 255, 0),
-                2,
+                persist=True,  # keep track ids across frames
+                classes=VEHICLE_CLASSES,
+                conf=CONFIDENCE,
+                agnostic_nms=True,  # one box per object, even if YOLO says both "car" and "truck"
+                tracker="vehicle_tracker.yaml",
+                verbose=False,
+            )
+            boxes = results[0].boxes
+            inside_now: dict[str, set[int]] = {name: set() for name in ZONES}
+
+            if boxes is not None and boxes.id is not None:
+                # Convert all boxes at once: one copy from the model's tensors to Python
+                # lists per frame, instead of several tiny copies per box.
+                track_ids = boxes.id.int().tolist()
+                coordinates = boxes.xyxy.int().tolist()
+                confidences = boxes.conf.tolist()
+
+                for track_id, (x1, y1, x2, y2), confidence in zip(
+                    track_ids, coordinates, confidences
+                ):
+                    point = anchor_point(x1, y1, x2, y2)
+
+                    for name, zone in ZONES.items():
+                        if cv2.pointPolygonTest(zone["polygon"], point, False) >= 0:
+                            inside_now[name].add(track_id)
+                            streak = frames_inside[name].get(track_id, 0) + 1
+                            frames_inside[name][track_id] = streak
+                            if (
+                                streak >= MIN_FRAMES_IN_ZONE
+                                and track_id not in counted_ids[name]
+                            ):
+                                counted_ids[name].add(track_id)
+                                print(f"{zone['label']}: new vehicle, id {track_id}")
+
+                    cv2.rectangle(frame, (x1, y1), (x2, y2), GREEN, 2)
+                    cv2.putText(
+                        frame,
+                        f"ID {track_id} {confidence:.2f}",
+                        (x1, y1 - 8),
+                        FONT,
+                        0.5,
+                        GREEN,
+                        2,
+                    )
+                    cv2.circle(frame, point, 5, BLUE, -1)
+
+            # Reset the streak of cars that are not inside any more (also keeps memory small)
+            for name in ZONES:
+                frames_inside[name] = {
+                    t: n
+                    for t, n in frames_inside[name].items()
+                    if t in inside_now[name]
+                }
+            draw_zones(frame)
+            for name, zone in ZONES.items():
+                draw_panel(
+                    frame,
+                    zone["panel_x"],
+                    zone["title"],
+                    zone["color"],
+                    len(inside_now[name]),
+                    len(counted_ids[name]),
+                )
+
+            now = time.perf_counter()
+            fps = 0.9 * fps + 0.1 * (1 / (now - previous_time))  # smoothed
+            previous_time = now
+            cv2.putText(
+                frame, f"{fps:.1f} FPS", (20, FRAME_SIZE[1] - 20), FONT, 0.7, WHITE, 2
             )
 
-            # Person center point:
-            cv2.circle(frame, car_point, 5, (255, 0, 0), -1)
+            if SHOW_WINDOW:
+                cv2.imshow("Multi-Zone Monitoring", frame)
+                if cv2.waitKey(1) & 0xFF == ord("q"):
+                    break
+    except KeyboardInterrupt:
+        print("Stopped by user")
+    finally:
+        cap.release()
+        if SHOW_WINDOW:
+            cv2.destroyAllWindows()
+        print({ZONES[name]["label"]: len(ids) for name, ids in counted_ids.items()})
 
-    incoming_count = len(cars_in_zones["Zone A (Incoming)"])
-    outgoing_count = len(cars_in_zones["Zone B (Outgoing)"])
-    print("Incoming cars:", incoming_count)
-    print("Outgoing cars:", outgoing_count)
 
-    # Incoming dashboard - LEFT SIDE
-    cv2.rectangle(
-        frame,
-        (20, 20),
-        (320, 155),
-        (30, 30, 30),
-        -1
-    )
-
-    cv2.putText(
-        frame,
-        "INCOMING",
-        (40, 50),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.8,
-        (0, 255, 0),
-        2
-    )
-
-    cv2.putText(
-        frame,
-        f"Currently Inside: {incoming_count}",
-        (40, 90),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
-        (255, 255, 255),
-        2
-    )
-
-    cv2.putText(
-        frame,
-        f"Total Incoming: {total_incoming}",
-        (40, 125),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
-        (255, 255, 255),
-        2
-    )
-
-    # Outgoing dashboard - RIGHT SIDE
-    cv2.rectangle(
-        frame,
-        (960, 20),
-        (1260, 155),
-        (30, 30, 30),
-        -1
-    )
-
-    cv2.putText(
-        frame,
-        "OUTGOING",
-        (980, 50),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.8,
-        (0, 165, 255),
-        2
-    )
-
-    cv2.putText(
-        frame,
-        f"Currently Inside: {outgoing_count}",
-        (980, 90),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
-        (255, 255, 255),
-        2
-    )
-
-    cv2.putText(
-        frame,
-        f"Total Outgoing: {total_outgoing}",
-        (980, 125),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
-        (255, 255, 255),
-        2
-    )
-
-    cv2.imshow("Multi-Zone Monitoring", frame)
-
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+if __name__ == "__main__":
+    main()
