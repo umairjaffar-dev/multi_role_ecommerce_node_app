@@ -92,7 +92,7 @@ def main() -> None:
 
     # Each vehicle is counted once per zone, even if its box jitters across the zone edge.
     # (Only small ints; for a 24/7 camera you would reset these e.g. once a day.)
-    counted_ids: dict[str, set[int]] = {name: set[int]() for name in ZONES}
+    counted_ids: dict[str, set[int]] = {name: set() for name in ZONES}
     # zone -> {track id: consecutive frames inside}
     frames_inside: dict[str, dict[int, int]] = {name: {} for name in ZONES}
 
@@ -122,7 +122,7 @@ def main() -> None:
                 verbose=False,
             )
             boxes = results[0].boxes
-            inside_now: dict[str, set[int]] = {name: set[int]() for name in ZONES}
+            inside_now: dict[str, set[int]] = {name: set() for name in ZONES}
 
             if boxes is not None and boxes.id is not None:
                 # Convert all boxes at once: one copy from the model's tensors to Python
@@ -131,7 +131,7 @@ def main() -> None:
                 coordinates = boxes.xyxy.int().tolist()
                 confidences = boxes.conf.tolist()
 
-                for track_id, (x1, y1, x2, y2), confidence in zip[tuple](
+                for track_id, (x1, y1, x2, y2), confidence in zip(
                     track_ids, coordinates, confidences
                 ):
                     point = anchor_point(x1, y1, x2, y2)

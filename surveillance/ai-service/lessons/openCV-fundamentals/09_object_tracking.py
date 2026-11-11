@@ -9,7 +9,7 @@ model = YOLO("yolo11n.pt")
 # Open webcam(video url/location)
 cap = cv2.VideoCapture("rtsp://localhost:8554/fake3")
 
-if not cap.isOpened:
+if not cap.isOpened():
     raise RuntimeError("Cannot open webcam")
 
 # Store previous position of person:: store the last known position for each tracking ID.
